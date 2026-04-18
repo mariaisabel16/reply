@@ -1,0 +1,24 @@
+Semester,Total_Credits_Sem,Kategorie,Modul_ID,Modulbezeichnung,Modul_Credits
+1,28,Informatik,IN0001,Einführung in die Informatik *,6
+1,28,Informatik,IN0004,Einführung in die Rechnerarchitektur *,8
+1,28,Mathematik,IN0015,Diskrete Strukturen *,8
+1,28,"Praktika, Projekte, Seminare",IN0002,Grundlagenpraktikum: Programmierung *,6
+2,30,Informatik,IN0006,Einführung in die Softwaretechnik,6
+2,30,Informatik,IN0007,Grundlagen: Algorithmen und Datenstrukturen,6
+2,30,Informatik,IN0003,Funktionale Programmierung und Verifikation,5
+2,30,Mathematik,MA0901,Lineare Algebra für Informatik,8
+2,30,"Praktika, Projekte, Seminare",IN0005,Grundlagenpraktikum: Rechnerarchitektur,5
+3,24,Informatik,IN0008,Grundlagen: Datenbanken,6
+3,24,Informatik,IN0009,Grundlagen: Betriebssysteme und Systemsoftware,5
+3,24,Informatik,IN0042,IT-Sicherheit,5
+3,24,Mathematik,MA0902,Analysis für Informatik,8
+4,25,Informatik,IN0010,Grundlagen: Rechnernetze und Verteilte Systeme,6
+4,25,Informatik,IN0011,Einführung in die Theoretische Informatik,8
+4,25,Mathematik,IN0018,Diskrete Wahrscheinlichkeitstheorie,6
+4,25,"Praktika, Projekte, Seminare",IN0014,Seminar,5
+5,21,Informatik,,Wahlmodule Informatik ***,5
+5,21,Mathematik,IN0019,Numerisches Programmieren,6
+5,21,"Praktika, Projekte, Seminare",IN0012,Bachelor-Praktikum,10
+6,25,Informatik,,Wahlmodule Informatik ***,10
+6,25,Informatik,IN2261,Bachelorarbeit,12
+6,25,Informatik,IN2260,Bachelor-Kolloquium,3

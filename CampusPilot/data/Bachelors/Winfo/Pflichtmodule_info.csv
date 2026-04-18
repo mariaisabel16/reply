@@ -1,0 +1,23 @@
+Kategorie,Nr,Modulbezeichnung,Lehrform,Sem,SWS,Credits,Prüfungsart,Prüfungsdauer,Unterrichtssprache
+Pflichtmodule Informatik,CIT123001,Einführung in die Informatik und das Programmieren *),V+P,1,4+4,12,"zwei Übungsleistungen + Klausur, 1:1:2",180-240,DE/EN
+Pflichtmodule Informatik,IN0006,Einführung in die Softwaretechnik,V+Ü,2,3+2,6,Klausur,90-150,DE/EN
+Pflichtmodule Informatik,IN0007,Grundlagen: Algorithmen und Datenstrukturen,V+Ü,2,3+2,6,Klausur,90-150,DE/EN
+Pflichtmodule Informatik,IN0008,Grundlagen: Datenbanken,V+Ü,3,3+2,6,Klausur,90-150,DE/EN
+Pflichtmodule Informatik,IN0010,Grundlagen: Rechnernetze und Verteilte Systeme,V+Ü,4,3+2,6,Klausur,90-150,DE/EN
+Pflichtmodule Informatik,IN0014,Seminar,S,4,2,5,wiss. Ausarbeitung,,DE/EN
+Pflichtmodule Informatik,IN0012,Bachelor-Praktikum,P,5,6,10,Projektarbeit,,DE/EN
+Pflichtmodule Wirtschaftsinformatik,IN0021,Einführung in die Wirtschaftsinformatik *),V+Ü,1,2+2,5,Klausur,75-125,DE/EN
+Pflichtmodule Wirtschaftsinformatik,IN0025,Information Technologies and Society (IT and Society),V+Ü,2,2+2,5,Klausur,75-125,EN
+Pflichtmodule Wirtschaftsinformatik,IN2085,Software Engineering für betriebliche Anwendungen Bachelor,V+Ü,3,2+2,5,Klausur,75-125,DE/EN
+Pflichtmodule Wirtschaftsinformatik,IN0024,Operations Research,V+Ü,4,3+2,6,Klausur,90-150,DE/EN
+Pflichtmodule Wirtschaftsinformatik,IN2028,Business Analytics and Machine Learning,V+Ü,5,2+2,5,Klausur,75-125,EN
+Pflichtmodule Wirtschaftswissenschaften,WI001059_E,Financial Accounting,V+Ü,1,2+2,6,Klausur,60-120,EN
+Pflichtmodule Wirtschaftswissenschaften,WI001057_E,Cost Accounting,V+Ü,2,2+2,6,Klausur,60,EN
+Pflichtmodule Wirtschaftswissenschaften,WI000219_E,Investment and Financial Management,VI,3,4,6,Übungsleistung,,EN
+Pflichtmodule Wirtschaftswissenschaften,MGT001373,Applied Econometrics,V+Ü,4,2+2,6,Klausur,90,DE/EN
+Pflichtmodule Mathematik,IN0015,Diskrete Strukturen *),V+Ü,1,4+2,8,Klausur,120-180,DE/EN
+Pflichtmodule Mathematik,MA0901,Lineare Algebra für Informatik,V+Ü,2,4+2,8,Klausur,90-180,DE
+Pflichtmodule Mathematik,MA0902,Analysis für Informatik,V+Ü,3,4+2,8,Klausur,mark,DE
+Pflichtmodule Bachelorprojekt/Thesis,IN2317,Bachelorprojekt,,6,,10,Projektarbeit,,DE/EN
+Pflichtmodule Bachelorprojekt/Thesis,IN2316,Bachelor's Thesis,,6,,12,wiss. Ausarbeitung,,DE/EN
+Pflichtmodule Bachelorprojekt/Thesis,IN2285,Bachelorkolloquium,S,6,1,3,Präsentation,30,DE/EN

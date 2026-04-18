@@ -1,0 +1,20 @@
+Kategorie,Nr,Modulbezeichnung,Lehrform,Sem,SWS,Credits,Prüfungsart,Prüfungsdauer,Unterrichtssprache
+Pflichtmodule Informatik,IN0001,Einführung in die Informatik *),V,1,4,6,Klausur,90-150,DE/EN
+Pflichtmodule Informatik,IN0002,Grundlagenpraktikum: Programmierung *),Ü+P,1,1+3,6,Übungsleistung,,DE/EN
+Pflichtmodule Informatik,IN0004,Einführung in die Rechnerarchitektur *),V+Ü,1,4+2,8,Klausur,120-180,DE
+Pflichtmodule Informatik,IN0005,Grundlagenpraktikum: Rechnerarchitektur,P,2,3,5,Projektarbeit,,DE
+Pflichtmodule Informatik,IN0006,Einführung in die Softwaretechnik,V+Ü,2,3+2,6,Klausur,90-150,DE/EN
+Pflichtmodule Informatik,IN0007,Grundlagen: Algorithmen und Datenstrukturen,V+Ü,2,3+2,6,Klausur,90-150,DE/EN
+Pflichtmodule Informatik,IN0003,Funktionale Programmierung und Verifikation,V+Ü,2,2+2,5,Klausur,75-125,DE/EN
+Pflichtmodule Informatik,IN0008,Grundlagen: Datenbanken,V+Ü,3,3+2,6,Klausur,90-150,DE/EN
+Pflichtmodule Informatik,IN0009,Grundlagen: Betriebssysteme und Systemsoftware,V+Ü,3,3+2,5,Klausur,75-125,DE/EN
+Pflichtmodule Informatik,IN0042,IT-Sicherheit,V+Ü,3,2+2,5,Klausur,60-125,DE/EN
+Pflichtmodule Informatik,IN0010,Grundlagen: Rechnernetze und Verteilte Systeme,V+Ü,4,3+2,6,Klausur,90-150,DE/EN
+Pflichtmodule Informatik,IN0011,Einführung in die Theoretische Informatik,V+Ü,4,4+2,8,Klausur,120-180,DE/EN
+Pflichtmodule Informatik,IN0014,Seminar,S,4/5/6,2,5,wiss. Ausarbeitung,,DE/EN
+Pflichtmodule Informatik,IN0012,Bachelor-Praktikum,P,4/5,6,10,Projektarbeit,,DE/EN
+Pflichtmodule Mathematik,IN0015,Diskrete Strukturen *),V+Ü,1,4+2,8,Klausur,120-180,DE/EN
+Pflichtmodule Mathematik,MA0901,Lineare Algebra für Informatik,V+Ü,2,4+2,8,Klausur,90-180,DE
+Pflichtmodule Mathematik,MA0902,Analysis für Informatik,V+Ü,3,4+2,8,Klausur,90-180,DE
+Pflichtmodule Mathematik,IN0018,Diskrete Wahrscheinlichkeitstheorie,V+Ü,4,3+2,6,Klausur,90-150,DE/EN
+Pflichtmodule Mathematik,IN0019,Numerisches Programmieren **),V+Ü,5 **),2+3,6,Klausur,90-150,DE/EN
