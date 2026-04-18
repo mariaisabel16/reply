@@ -320,7 +320,7 @@ async def scrape_curriculum_page(page):
     cards = await get_cards(page)
     links = await get_links(page)
     widgets = await extract_status_widgets(page)
-    modules = await extract_module_tiles(page)
+    modules = await extract_curriculum_cards(page)
     return {
         "url": page.url,
         "name": extract_name(text),
@@ -424,21 +424,15 @@ async def automated_login(page, username: str, password: str):
         raise RuntimeError("Konnte das Passwort-Feld im zweiten Login-Formular nicht finden.")
     print_ok(f"Passwort eingetragen mit Selector: {pass_sel}")
 
-    # --- UPDATED CHECKBOX LOGIC ---
     print_step("Prüfe 'Angemeldet bleiben' Checkbox...")
     try:
-        # Methode 1: Suchen nach dem sichtbaren Text aus dem Screenshot.
-        # In Playwright ist es oft am sichersten, einfach auf den Text neben der Checkbox zu klicken.
-        checkbox_label = page.get_by_text(re.compile(r"angemeldet bleiben", re.IGNORECASE)).first
+        remember_me = page.locator('label').filter(has_text=re.compile(r"angemeldet bleiben|keep me logged in|remember me", re.IGNORECASE)).locator('input[type="checkbox"]')
         
-        if await checkbox_label.is_visible():
-            # Wir klicken direkt auf das Label, was die Checkbox aktiviert
-            await checkbox_label.click()
-            print_ok("✅ 'Angemeldet bleiben' erfolgreich angeklickt (via Text-Locator).")
+        if await remember_me.is_visible():
+            await remember_me.click()
+            print_ok("'Angemeldet bleiben' erfolgreich angeklickt.")
             
         else:
-            # Fallback: Falls der Text aus irgendeinem Grund nicht gefunden wird,
-            # greifen wir blind die allererste Checkbox auf der Seite (es gibt laut Bild nur zwei, und das ist die erste).
             first_checkbox = page.locator('input[type="checkbox"]').first
             if await first_checkbox.is_visible():
                 await first_checkbox.check()
@@ -764,6 +758,81 @@ def get_tumonline_data(username: str = None, password: str = None, session_file:
         save_debug_screenshots=False
     ))
 
+async def extract_curriculum_cards(page):
+    print_step("Scanne Curriculum-Seite nach Modul-Karten...")
+    
+    # 1. Wait for the grid to load by looking for the word "Credits"
+    try:
+        await page.wait_for_selector('text="Credits"', timeout=15000)
+    except Exception:
+        print_warn("Konnte die Modul-Karten nicht rechtzeitig laden.")
+        return []
+
+    # 2. Select all potential card containers. 
+    # TUMonline usually uses 'mat-card' or divs with 'card' or 'tile' in the class.
+    # We also use a fallback: any element that directly contains a status-like text structure.
+    card_locators = page.locator('mat-card, [class*="card"], [class*="tile"]')
+    
+    count = await card_locators.count()
+    print_ok(f"{count} potenzielle Karten-Elemente gefunden. Analysiere Inhalt...")
+    
+    extracted_modules = []
+    seen_titles = set()
+
+    for i in range(count):
+        card = card_locators.nth(i)
+        
+        # is_visible() prevents scraping hidden mobile-menus or background elements
+        if not await card.is_visible():
+            continue
+            
+        text = await card.inner_text()
+        
+        # Split the text into lines and clean up whitespace
+        lines = [line.strip() for line in text.split('\n') if line.strip()]
+        
+        # We only care about cards that have enough data to be a module (Title, Status, Credits)
+        if len(lines) >= 3 and "Credits" in text:
+            # --- PARSING THE TEXT BLOCK ---
+            
+            # Line 0 is usually the title. Let's remove the "⋮" menu icon if it got scraped
+            raw_title = lines[0]
+            title = raw_title.replace("⋮", "").strip()
+            
+            # Skip duplicates (TUMonline sometimes renders shadows/duplicates in the DOM)
+            if title in seen_titles:
+                continue
+            seen_titles.add(title)
+            
+            # Line 1 is usually the status ("POSITIVE", "IN PROGRESS...")
+            status = lines[1]
+            
+            # Line 2 is usually the credit ratio ("24/36")
+            credits_raw = lines[2]
+            
+            # Separate current vs total credits
+            current_credits, total_credits = None, None
+            if "/" in credits_raw:
+                parts = credits_raw.split("/")
+                current_credits = parts[0].strip()
+                total_credits = parts[1].strip()
+
+            # --- FILTERING ---
+            # You mentioned you specifically want "Required Modules" 
+            # We can flag them, or just extract them all and let the LLM sort them.
+            is_required = any(keyword in title.lower() for keyword in ["required", "pflicht"])
+
+            extracted_modules.append({
+                "module_name": title,
+                "is_required": is_required,
+                "status": status,
+                "credits_current": current_credits,
+                "credits_total": total_credits,
+                "raw_credits_text": credits_raw
+            })
+
+    print_ok(f"{len(extracted_modules)} gültige Module erfolgreich extrahiert.")
+    return extracted_modules
 
 async def main():
     print_header()
