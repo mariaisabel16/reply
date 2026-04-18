@@ -1,30 +1,69 @@
 [
   {
-    "module_id": "IN0006",
-    "name": "Einführung in die Rechnerarchitektur (ERA)",
-    "ects": 6,
-    "category": "Pflicht",
-    "semester": "WS",
-    "description": "Grundlagen der Rechnerorganisation, Assembler-Programmierung und digitale Logik.",
-    "prerequisites": []
-  },
-  {
     "module_id": "IN2062",
     "name": "Introduction to Deep Learning",
     "ects": 5,
     "category": "Wahlpflicht",
     "semester": "SS",
-    "description": "Grundlagen neuronaler Netze, Backpropagation und Deep Learning Architekturen.",
-    "prerequisites": ["MA0901"]
+    "description": "Neural networks, backpropagation, and practical machine learning pipelines.",
+    "prerequisites": [
+      "MA0901"
+    ],
+    "tags": [
+      "machine learning",
+      "data science",
+      "python"
+    ],
+    "master_tracks": [
+      "Artificial Intelligence",
+      "Data Engineering"
+    ],
+    "material_availability": 0.95,
+    "registration_deadline": "2026-05-05",
+    "seats_available": 28,
+    "exam_type": "written",
+    "schedule": [
+      {
+        "day": "Tuesday",
+        "start": "10:00",
+        "end": "12:00"
+      },
+      {
+        "day": "Thursday",
+        "start": "12:00",
+        "end": "14:00"
+      }
+    ]
   },
   {
-    "module_id": "IN2339",
-    "name": "Advanced Artificial Intelligence",
+    "module_id": "IN2111",
+    "name": "Data Engineering Lab",
     "ects": 6,
     "category": "Wahlpflicht",
-    "semester": "WS",
-    "description": "Fortgeschrittene Konzepte der KI, Suchalgorithmen und probabilistisches Schließen.",
-    "prerequisites": ["IN0002"]
+    "semester": "SS",
+    "description": "ETL pipelines, cloud data processing, and production-ready data workflows.",
+    "prerequisites": [
+      "IN0002"
+    ],
+    "tags": [
+      "data engineering",
+      "cloud",
+      "pipelines"
+    ],
+    "master_tracks": [
+      "Data Engineering"
+    ],
+    "material_availability": 0.82,
+    "registration_deadline": "2026-05-12",
+    "seats_available": 10,
+    "exam_type": "project",
+    "schedule": [
+      {
+        "day": "Wednesday",
+        "start": "14:00",
+        "end": "17:00"
+      }
+    ]
   },
   {
     "module_id": "IN0012",
@@ -32,7 +71,122 @@
     "ects": 6,
     "category": "Pflicht",
     "semester": "SS",
-    "description": "Vorgehensmodelle, Design Patterns und Qualitätssicherung in der Softwareentwicklung.",
-    "prerequisites": ["IN0001"]
+    "description": "Architectures, collaboration workflows, software quality, and testing.",
+    "prerequisites": [
+      "IN0001"
+    ],
+    "tags": [
+      "software engineering",
+      "teamwork",
+      "testing"
+    ],
+    "master_tracks": [
+      "Software Engineering",
+      "Data Engineering"
+    ],
+    "material_availability": 0.9,
+    "registration_deadline": "2026-05-20",
+    "seats_available": 35,
+    "exam_type": "written",
+    "schedule": [
+      {
+        "day": "Monday",
+        "start": "08:00",
+        "end": "10:00"
+      },
+      {
+        "day": "Wednesday",
+        "start": "10:00",
+        "end": "12:00"
+      }
+    ]
+  },
+  {
+    "module_id": "IN2195",
+    "name": "Data Visualization",
+    "ects": 5,
+    "category": "Wahlpflicht",
+    "semester": "SS",
+    "description": "Visual analytics, dashboards, and communication of data products.",
+    "prerequisites": [],
+    "tags": [
+      "data science",
+      "visualization",
+      "web"
+    ],
+    "master_tracks": [
+      "Data Engineering",
+      "Human Centered Design"
+    ],
+    "material_availability": 0.76,
+    "registration_deadline": "2026-04-22",
+    "seats_available": 16,
+    "exam_type": "project",
+    "schedule": [
+      {
+        "day": "Friday",
+        "start": "10:00",
+        "end": "12:00"
+      }
+    ]
+  },
+  {
+    "module_id": "IN2107",
+    "name": "Distributed Systems",
+    "ects": 6,
+    "category": "Wahlpflicht",
+    "semester": "SS",
+    "description": "Scalable systems, replication, consistency, and cloud services.",
+    "prerequisites": [
+      "IN0002"
+    ],
+    "tags": [
+      "cloud",
+      "distributed systems",
+      "scalability"
+    ],
+    "master_tracks": [
+      "Data Engineering"
+    ],
+    "material_availability": 0.7,
+    "registration_deadline": "2026-04-10",
+    "seats_available": 22,
+    "exam_type": "written",
+    "schedule": [
+      {
+        "day": "Tuesday",
+        "start": "10:00",
+        "end": "12:00"
+      }
+    ]
+  },
+  {
+    "module_id": "IN2339",
+    "name": "Advanced Artificial Intelligence",
+    "ects": 6,
+    "category": "Wahlpflicht",
+    "semester": "WS",
+    "description": "Search, probabilistic reasoning, and advanced AI concepts.",
+    "prerequisites": [
+      "IN0002"
+    ],
+    "tags": [
+      "artificial intelligence",
+      "machine learning"
+    ],
+    "master_tracks": [
+      "Artificial Intelligence"
+    ],
+    "material_availability": 0.84,
+    "registration_deadline": "2026-11-01",
+    "seats_available": 18,
+    "exam_type": "written",
+    "schedule": [
+      {
+        "day": "Thursday",
+        "start": "10:00",
+        "end": "12:00"
+      }
+    ]
   }
 ]
