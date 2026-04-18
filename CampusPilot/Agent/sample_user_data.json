@@ -1,0 +1,22 @@
+{
+  "firstName": "Max",
+  "lastName": "Mustermann",
+  "age": 22,
+  "email": "max.mustermann@email.com",
+  "city": "Musterstadt",
+  "university": "Technische Universität München",
+  "campus": "Garching",
+  "studyProgram": "Informatik",
+  "semester": 4,
+  "interests": ["Künstliche Intelligenz", "Robotik", "Software Engineering"],
+  "enrolledCourses": [
+    {
+      "courseId": "IN0001",
+      "courseName": "Einführung in die Informatik 1"
+    },
+    {
+      "courseId": "IN0007",
+      "courseName": "Grundlagen Datenbanken"
+    }
+  ]
+}
