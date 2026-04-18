@@ -1,6 +1,6 @@
-:
-def buildprofile():
 
+def buildprofile(jsonFiles):
+#baue ein nutzerProfil in der Datenbank damit die Agents effizienter
 
 
 def determine_intent():

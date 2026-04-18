@@ -1,0 +1,38 @@
+[
+  {
+    "module_id": "IN0006",
+    "name": "Einführung in die Rechnerarchitektur (ERA)",
+    "ects": 6,
+    "category": "Pflicht",
+    "semester": "WS",
+    "description": "Grundlagen der Rechnerorganisation, Assembler-Programmierung und digitale Logik.",
+    "prerequisites": []
+  },
+  {
+    "module_id": "IN2062",
+    "name": "Introduction to Deep Learning",
+    "ects": 5,
+    "category": "Wahlpflicht",
+    "semester": "SS",
+    "description": "Grundlagen neuronaler Netze, Backpropagation und Deep Learning Architekturen.",
+    "prerequisites": ["MA0901"]
+  },
+  {
+    "module_id": "IN2339",
+    "name": "Advanced Artificial Intelligence",
+    "ects": 6,
+    "category": "Wahlpflicht",
+    "semester": "WS",
+    "description": "Fortgeschrittene Konzepte der KI, Suchalgorithmen und probabilistisches Schließen.",
+    "prerequisites": ["IN0002"]
+  },
+  {
+    "module_id": "IN0012",
+    "name": "Software Engineering",
+    "ects": 6,
+    "category": "Pflicht",
+    "semester": "SS",
+    "description": "Vorgehensmodelle, Design Patterns und Qualitätssicherung in der Softwareentwicklung.",
+    "prerequisites": ["IN0001"]
+  }
+]

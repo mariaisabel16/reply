@@ -1,0 +1,30 @@
+{
+  "program_id": "B.Sc. Informatik",
+  "total_ects_required": 180,
+  "schedule": [
+    {
+      "semester": 1,
+      "mandatory_modules": ["IN0001", "MA0901"],
+      "elective_ects": 0
+    },
+    {
+      "semester": 2,
+      "mandatory_modules": ["IN0002", "IN0006"],
+      "elective_ects": 0
+    },
+    {
+      "semester": 3,
+      "mandatory_modules": ["IN0012"],
+      "elective_ects": 10
+    },
+    {
+      "semester": 4,
+      "mandatory_modules": [],
+      "elective_ects": 15
+    }
+  ],
+  "elective_rules": {
+    "min_total_elective_ects": 30,
+    "allowed_categories": ["Wahlpflicht"]
+  }
+}
