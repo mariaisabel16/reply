@@ -1,0 +1,448 @@
+{
+  "scraped_at": "2026-04-18T16:43:49.755080",
+  "home_url": "https://campus.tum.de/tumonline/ee/ui/ca2/app/desktop/#/home?$ctx=lang=DE",
+  "curriculum_url": "https://campus.tum.de/tumonline/ee/ui/ca2/app/desktop/#/slc.cm.cs/student/myStudies/1089084/myCurriculumElements/2917690?$ctx=design=ca;lang=DE&$filter=active-eq=true;currentlyValid-eq=true;partOfCurriculum-eq=true",
+  "student_card_url": "https://campus.tum.de/tumonline/wbstudkart.wbstudent",
+  "curriculum_data": {
+    "url": "https://campus.tum.de/tumonline/ee/ui/ca2/app/desktop/#/slc.cm.cs/student/myStudies/1089084/myCurriculumElements/2917690?$ctx=design=ca;lang=DE&$filter=active-eq=true;currentlyValid-eq=true;partOfCurriculum-eq=true",
+    "name": "Maria Sagastume Giron",
+    "semester": "Studienbeitrag 2026 S",
+    "matrikelnummer": null,
+    "ects": {
+      "ects_current": "161",
+      "ects_total": "180"
+    },
+    "average": "3.079",
+    "study_status": [
+      "Studienstatus\nStudienbeitrag 2026 S",
+      "Studienbeitrag 2026 S"
+    ],
+    "modules": [
+      {
+        "module_name": "Pflichtmodul Bachelor-Praktikum",
+        "status": "POSITIV",
+        "credits_current": "10",
+        "credits_total": "10"
+      },
+      {
+        "module_name": "Pflichtmodul Seminar",
+        "status": "POSITIV",
+        "credits_current": "5",
+        "credits_total": "5"
+      },
+      {
+        "module_name": "Pflichtmodule Informatik",
+        "status": "POSITIV",
+        "credits_current": "72",
+        "credits_total": "72"
+      },
+      {
+        "module_name": "Pflichtmodule Mathematik",
+        "status": "POSITIV",
+        "credits_current": "36",
+        "credits_total": "36"
+      },
+      {
+        "module_name": "Wahlmodule Überfachliche Grundlagen",
+        "status": "POSITIV",
+        "credits_current": "6",
+        "credits_total": "6"
+      },
+      {
+        "module_name": "Anwendungsfach",
+        "status": "POSITIV",
+        "credits_current": "21",
+        "credits_total": "21"
+      }
+    ],
+    "text_preview": "Maria Sagastume Giron\nDE\nMein Studium\nInformatik [20211], Bachelor of Science (1630 17 030)\nHilfeSupport\n Informatik [20211]\nskip navigation\nBachelor Informatik\nPflichtmodul Bachelor-Praktikum\nPflichtmodul Seminar\nPflichtmodule Informatik\nPflichtmodule Mathematik\nWahlmodule Informatik(In Arbeit seit 2025 W)\nWahlmodule Überfachliche Grundlagen\nAnwendungsfach\nBachelor's Thesis und Kolloquium\n [20211]  Bachelor Informatik\nMein Studienfortschritt.\nRechtsverbindlich allein ist nur der Prüfungsbescheid jedes Semesters (siehe Studierendenakte).\nMEIN AKTUELLER STATUS\n161/180\nCredits erreicht\nStudienstatus\nStudienbeitrag 2026 S\nVorläufige Durchschnittsnote\n3,079\nPLANUNG\nSemesterplan\nModule\nPrüfungen\nAKTIVITÄT\nAnmeldungen zu Lehrveranstaltungen\n7\nAnmeldungen zu Prüfungen\n0\nVorgemerkte Lehrveranstaltungen 2026 S\n0\nStudierendenakte\nFiltern\nSortierung (aufsteigend)\nPflichtmodul Bachelor-Praktikum\n POSITIV\n10/10\nCredits\nPflichtmodul Seminar\n POSITIV\n5/5\nCredits\nPflichtmodule Informatik\n POSITIV\n72/72\nCredits\nPflichtmodule Mathematik\n POSITIV\n36/36\nCredits\nWahlmodule Informatik\n IN ARBEIT SEIT 2025 W\n11/15\nCredits\nWahlmodule Überfachliche Grundlagen\n POSITIV\n6/6\nCredits\nAnwendungsfach\n POSITIV\n21/21\nCredits\nBachelor's Thesis und Kolloquium\n0/15\nCredits\nFolgende Elemente können über die  Einstellungen eingeblendet werden:\nInaktive oder nicht gewählte Elemente \nZeitlich ungültige Elemente \nElemente aus dem erweiterten Curriculum \n\n© 2026 CAMPUSonline. Alle Rechte vorbehalten. | Anleitungen | Datenschutz | Kontakt | Impressum\n\nMein Studium",
+    "cards": [
+      {
+        "selector": "mat-card",
+        "text": "Mein Studienfortschritt.\nRechtsverbindlich allein ist nur der Prüfungsbescheid jedes Semesters (siehe Studierendenakte).\nMEIN AKTUELLER STATUS\n161/180\nCredits erreicht\nStudienstatus\nStudienbeitrag 2026 S\nVorläufige Durchschnittsnote\n3,079\nPLANUNG\nSemesterplan\nModule\nPrüfungen\nAKTIVITÄT\nAnmeldungen zu Lehrveranstaltungen\n7\nAnmeldungen zu Prüfungen\n0\nVorgemerkte Lehrveranstaltungen 2026 S\n0\nStudierendenakte"
+      },
+      {
+        "selector": "mat-card",
+        "text": "MEIN AKTUELLER STATUS\n161/180\nCredits erreicht\nStudienstatus\nStudienbeitrag 2026 S\nVorläufige Durchschnittsnote\n3,079"
+      },
+      {
+        "selector": "mat-card",
+        "text": "PLANUNG\nSemesterplan\nModule\nPrüfungen"
+      },
+      {
+        "selector": "mat-card",
+        "text": "AKTIVITÄT\nAnmeldungen zu Lehrveranstaltungen\n7\nAnmeldungen zu Prüfungen\n0\nVorgemerkte Lehrveranstaltungen 2026 S\n0\nStudierendenakte"
+      },
+      {
+        "selector": "mat-card",
+        "text": "Pflichtmodul Bachelor-Praktikum\n POSITIV\n10/10\nCredits"
+      },
+      {
+        "selector": "mat-card",
+        "text": "Pflichtmodul Seminar\n POSITIV\n5/5\nCredits"
+      },
+      {
+        "selector": "mat-card",
+        "text": "Pflichtmodule Informatik\n POSITIV\n72/72\nCredits"
+      },
+      {
+        "selector": "mat-card",
+        "text": "Pflichtmodule Mathematik\n POSITIV\n36/36\nCredits"
+      },
+      {
+        "selector": "mat-card",
+        "text": "Wahlmodule Informatik\n IN ARBEIT SEIT 2025 W\n11/15\nCredits"
+      },
+      {
+        "selector": "mat-card",
+        "text": "Wahlmodule Überfachliche Grundlagen\n POSITIV\n6/6\nCredits"
+      },
+      {
+        "selector": "mat-card",
+        "text": "Anwendungsfach\n POSITIV\n21/21\nCredits"
+      },
+      {
+        "selector": "mat-card",
+        "text": "Bachelor's Thesis und Kolloquium\n0/15\nCredits"
+      },
+      {
+        "selector": "[class*=\"card\"]",
+        "text": "Pflichtmodul Bachelor-Praktikum\n POSITIV\n10/10\nCredits\nPflichtmodul Seminar\n POSITIV\n5/5\nCredits\nPflichtmodule Informatik\n POSITIV\n72/72\nCredits\nPflichtmodule Mathematik\n POSITIV\n36/36\nCredits\nWahlmodule Informatik\n IN ARBEIT SEIT 2025 W\n11/15\nCredits\nWahlmodule Überfachliche Grundlagen\n POSITIV\n6/6\nCredits\nAnwendungsfach\n POSITIV\n21/21\nCredits\nBachelor's Thesis und Kolloquium\n0/15\nCredits"
+      },
+      {
+        "selector": "[class*=\"card\"]",
+        "text": "Pflichtmodul Bachelor-Praktikum\n POSITIV\n10/10\nCredits\nPflichtmodul Seminar\n POSITIV\n5/5\nCredits\nPflichtmodule Informatik\n POSITIV\n72/72\nCredits"
+      },
+      {
+        "selector": "[class*=\"card\"]",
+        "text": "10/10\nCredits"
+      },
+      {
+        "selector": "[class*=\"card\"]",
+        "text": "5/5\nCredits"
+      },
+      {
+        "selector": "[class*=\"card\"]",
+        "text": "72/72\nCredits"
+      },
+      {
+        "selector": "[class*=\"card\"]",
+        "text": "Pflichtmodule Mathematik\n POSITIV\n36/36\nCredits\nWahlmodule Informatik\n IN ARBEIT SEIT 2025 W\n11/15\nCredits\nWahlmodule Überfachliche Grundlagen\n POSITIV\n6/6\nCredits"
+      },
+      {
+        "selector": "[class*=\"card\"]",
+        "text": "36/36\nCredits"
+      },
+      {
+        "selector": "[class*=\"card\"]",
+        "text": "11/15\nCredits"
+      },
+      {
+        "selector": "[class*=\"card\"]",
+        "text": "6/6\nCredits"
+      },
+      {
+        "selector": "[class*=\"card\"]",
+        "text": "Anwendungsfach\n POSITIV\n21/21\nCredits\nBachelor's Thesis und Kolloquium\n0/15\nCredits"
+      },
+      {
+        "selector": "[class*=\"card\"]",
+        "text": "21/21\nCredits"
+      },
+      {
+        "selector": "[class*=\"card\"]",
+        "text": "0/15\nCredits"
+      },
+      {
+        "selector": "[class*=\"stat\"]",
+        "text": "(In Arbeit seit 2025 W)"
+      },
+      {
+        "selector": "[class*=\"stat\"]",
+        "text": "Credits erreicht"
+      },
+      {
+        "selector": "[class*=\"stat\"]",
+        "text": "Vorläufige Durchschnittsnote"
+      },
+      {
+        "selector": "[class*=\"stat\"]",
+        "text": "PLANUNG"
+      },
+      {
+        "selector": "[class*=\"stat\"]",
+        "text": "AKTIVITÄT"
+      },
+      {
+        "selector": "[class*=\"stat\"]",
+        "text": "Credits"
+      }
+    ],
+    "tables": [],
+    "links": [
+      {
+        "selector": "a",
+        "text": "Abmelden",
+        "href": null
+      },
+      {
+        "selector": "a",
+        "text": "",
+        "href": "app/desktop/#/home?$ctx=lang=DE"
+      },
+      {
+        "selector": "a",
+        "text": "Hilfe",
+        "href": "app/desktop/#/brm.sys.dtop.fbsp/feedback"
+      },
+      {
+        "selector": "a",
+        "text": "Support",
+        "href": "app/desktop/#/brm.sys.dtop.fbsp/support"
+      },
+      {
+        "selector": "a",
+        "text": "skip navigation",
+        "href": null
+      },
+      {
+        "selector": "a",
+        "text": "Bachelor Informatik",
+        "href": "../../../ee/ui/ca2/app/desktop/#/slc.cm.cs/student/myStudies/1089084/myCurriculumElements/2917690?$ctx=design=ca;lang=DE&$filter=active-eq=true;currentlyValid-eq=true;partOfCurriculum-eq=true"
+      },
+      {
+        "selector": "a",
+        "text": "Pflichtmodul Bachelor-Praktikum",
+        "href": "../../../ee/ui/ca2/app/desktop/#/slc.cm.cs/student/myStudies/1089084/myCurriculumElements/2918378?$ctx=design=ca;lang=DE&$filter=active-eq=true;currentlyValid-eq=true;partOfCurriculum-eq=true"
+      },
+      {
+        "selector": "a",
+        "text": "Pflichtmodul Seminar",
+        "href": "../../../ee/ui/ca2/app/desktop/#/slc.cm.cs/student/myStudies/1089084/myCurriculumElements/2917767?$ctx=design=ca;lang=DE&$filter=active-eq=true;currentlyValid-eq=true;partOfCurriculum-eq=true"
+      },
+      {
+        "selector": "a",
+        "text": "Pflichtmodule Informatik",
+        "href": "../../../ee/ui/ca2/app/desktop/#/slc.cm.cs/student/myStudies/1089084/myCurriculumElements/2917691?$ctx=design=ca;lang=DE&$filter=active-eq=true;currentlyValid-eq=true;partOfCurriculum-eq=true"
+      },
+      {
+        "selector": "a",
+        "text": "Pflichtmodule Mathematik",
+        "href": "../../../ee/ui/ca2/app/desktop/#/slc.cm.cs/student/myStudies/1089084/myCurriculumElements/2918685?$ctx=design=ca;lang=DE&$filter=active-eq=true;currentlyValid-eq=true;partOfCurriculum-eq=true"
+      },
+      {
+        "selector": "a",
+        "text": "Wahlmodule Informatik(In Arbeit seit 2025 W)",
+        "href": "../../../ee/ui/ca2/app/desktop/#/slc.cm.cs/student/myStudies/1089084/myCurriculumElements/2918728?$ctx=design=ca;lang=DE&$filter=active-eq=true;currentlyValid-eq=true;partOfCurriculum-eq=true"
+      },
+      {
+        "selector": "a",
+        "text": "Wahlmodule Überfachliche Grundlagen",
+        "href": "../../../ee/ui/ca2/app/desktop/#/slc.cm.cs/student/myStudies/1089084/myCurriculumElements/2919369?$ctx=design=ca;lang=DE&$filter=active-eq=true;currentlyValid-eq=true;partOfCurriculum-eq=true"
+      },
+      {
+        "selector": "a",
+        "text": "Anwendungsfach",
+        "href": "../../../ee/ui/ca2/app/desktop/#/slc.cm.cs/student/myStudies/1089084/myCurriculumElements/2921651?$ctx=design=ca;lang=DE&$filter=active-eq=true;currentlyValid-eq=true;partOfCurriculum-eq=true"
+      },
+      {
+        "selector": "a",
+        "text": "Bachelor's Thesis und Kolloquium",
+        "href": "../../../ee/ui/ca2/app/desktop/#/slc.cm.cs/student/myStudies/1089084/myCurriculumElements/2918721?$ctx=design=ca;lang=DE&$filter=active-eq=true;currentlyValid-eq=true;partOfCurriculum-eq=true"
+      },
+      {
+        "selector": "a",
+        "text": "Studierendenakte",
+        "href": "https://campus.tum.de/tumonline/ee/ui/ca2/app/desktop/#pl/ui/$ctx/!StudAkt.html?$ctx=&pNavAction=test"
+      },
+      {
+        "selector": "a",
+        "text": "Studienstatus",
+        "href": "https://campus.tum.de/tumonline/ee/ui/ca2/app/desktop/#pl/ui/$ctx/studienstatus.ht6ststatusDetail?$ctx=design=ca2;header=max;lang=de&pBasisStudNr=1089084&pEditable=FALSE&pOrgnr=&pStPersonNr=2326956"
+      },
+      {
+        "selector": "a",
+        "text": "Studienbeitrag 2026 S",
+        "href": "https://campus.tum.de/tumonline/ee/ui/ca2/app/desktop/#pl/ui/$ctx/wbstudienbeitragstatus.show?$ctx=design=ca2;header=max;lang=de&pSemesterNr=206"
+      },
+      {
+        "selector": "a",
+        "text": "",
+        "href": "https://campus.tum.de/tumonline/ee/ui/ca2/app/desktop/#/slc.cm.cs/student/myStudies/1089084/myCurriculumSemesterAchievements"
+      },
+      {
+        "selector": "a",
+        "text": "Semesterplan",
+        "href": "../../../ee/ui/ca2/app/desktop/#/slc.cm.cs/student/myStudies/1089084/myCurriculumSemesterPlan/?$ctx=design=ca;lang=DE&$filter=active-eq=true;currentlyValid-eq=true;partOfCurriculum-eq=true"
+      },
+      {
+        "selector": "a",
+        "text": "Module",
+        "href": "../../../ee/ui/ca2/app/desktop/#/slc.cm.cs/student/myStudies/1089084/myCurriculumOpenModules/?$ctx=design=ca;lang=DE&$filter=active-eq=true;currentlyValid-eq=true;partOfCurriculum-eq=true"
+      },
+      {
+        "selector": "a",
+        "text": "Prüfungen",
+        "href": "../../../ee/ui/ca2/app/desktop/#/slc.cm.cs/student/myStudies/1089084/myCurriculumOpenExams/?$ctx=design=ca;lang=DE&$filter=active-eq=true;currentlyValid-eq=true;partOfCurriculum-eq=true"
+      },
+      {
+        "selector": "a",
+        "text": "Anmeldungen zu Lehrveranstaltungen\n7",
+        "href": "https://campus.tum.de/tumonline/pages/slc.tm.cp/myCourses/206"
+      },
+      {
+        "selector": "a",
+        "text": "Anmeldungen zu Prüfungen\n0",
+        "href": "https://campus.tum.de/tumonline/pages/slc.xm.ex/registered-exams"
+      },
+      {
+        "selector": "a",
+        "text": "Vorgemerkte Lehrveranstaltungen 2026 S\n0",
+        "href": "https://campus.tum.de/tumonline/pages/slc.tm.cp/myCoursesBookmarked/206"
+      },
+      {
+        "selector": "a",
+        "text": "Studierendenakte",
+        "href": "../../../ee/ui/ca2/app/desktop/#pl/ui/$ctx/!StudAkt.html?$ctx=&pNavAction=test"
+      },
+      {
+        "selector": "a",
+        "text": "Pflichtmodul Bachelor-Praktikum\n POSITIV\n10/10\nCredits",
+        "href": "../../../ee/ui/ca2/app/desktop/#/slc.cm.cs/student/myStudies/1089084/myCurriculumElements/2918378?$ctx=design=ca;lang=DE&$filter=active-eq=true;currentlyValid-eq=true;partOfCurriculum-eq=true"
+      },
+      {
+        "selector": "a",
+        "text": "Pflichtmodul Seminar\n POSITIV\n5/5\nCredits",
+        "href": "../../../ee/ui/ca2/app/desktop/#/slc.cm.cs/student/myStudies/1089084/myCurriculumElements/2917767?$ctx=design=ca;lang=DE&$filter=active-eq=true;currentlyValid-eq=true;partOfCurriculum-eq=true"
+      },
+      {
+        "selector": "a",
+        "text": "Pflichtmodule Informatik\n POSITIV\n72/72\nCredits",
+        "href": "../../../ee/ui/ca2/app/desktop/#/slc.cm.cs/student/myStudies/1089084/myCurriculumElements/2917691?$ctx=design=ca;lang=DE&$filter=active-eq=true;currentlyValid-eq=true;partOfCurriculum-eq=true"
+      },
+      {
+        "selector": "a",
+        "text": "Pflichtmodule Mathematik\n POSITIV\n36/36\nCredits",
+        "href": "../../../ee/ui/ca2/app/desktop/#/slc.cm.cs/student/myStudies/1089084/myCurriculumElements/2918685?$ctx=design=ca;lang=DE&$filter=active-eq=true;currentlyValid-eq=true;partOfCurriculum-eq=true"
+      },
+      {
+        "selector": "a",
+        "text": "Wahlmodule Informatik\n IN ARBEIT SEIT 2025 W\n11/15\nCredits",
+        "href": "../../../ee/ui/ca2/app/desktop/#/slc.cm.cs/student/myStudies/1089084/myCurriculumElements/2918728?$ctx=design=ca;lang=DE&$filter=active-eq=true;currentlyValid-eq=true;partOfCurriculum-eq=true"
+      },
+      {
+        "selector": "a",
+        "text": "Wahlmodule Überfachliche Grundlagen\n POSITIV\n6/6\nCredits",
+        "href": "../../../ee/ui/ca2/app/desktop/#/slc.cm.cs/student/myStudies/1089084/myCurriculumElements/2919369?$ctx=design=ca;lang=DE&$filter=active-eq=true;currentlyValid-eq=true;partOfCurriculum-eq=true"
+      },
+      {
+        "selector": "a",
+        "text": "Anwendungsfach\n POSITIV\n21/21\nCredits",
+        "href": "../../../ee/ui/ca2/app/desktop/#/slc.cm.cs/student/myStudies/1089084/myCurriculumElements/2921651?$ctx=design=ca;lang=DE&$filter=active-eq=true;currentlyValid-eq=true;partOfCurriculum-eq=true"
+      },
+      {
+        "selector": "a",
+        "text": "Bachelor's Thesis und Kolloquium\n0/15\nCredits",
+        "href": "../../../ee/ui/ca2/app/desktop/#/slc.cm.cs/student/myStudies/1089084/myCurriculumElements/2918721?$ctx=design=ca;lang=DE&$filter=active-eq=true;currentlyValid-eq=true;partOfCurriculum-eq=true"
+      },
+      {
+        "selector": "a",
+        "text": "Inaktive oder nicht gewählte Elemente",
+        "href": null
+      },
+      {
+        "selector": "a",
+        "text": "Zeitlich ungültige Elemente",
+        "href": null
+      },
+      {
+        "selector": "a",
+        "text": "Elemente aus dem erweiterten Curriculum",
+        "href": null
+      },
+      {
+        "selector": "a",
+        "text": "Anleitungen",
+        "href": "https://www.it.tum.de/it/tumonline"
+      },
+      {
+        "selector": "a",
+        "text": "Datenschutz",
+        "href": "/dad/co_loc_wbpages.privacy"
+      },
+      {
+        "selector": "a",
+        "text": "Kontakt",
+        "href": "/dad/co_loc_wbsupportform.ini"
+      },
+      {
+        "selector": "a",
+        "text": "Impressum",
+        "href": "/dad/co_loc_wbpages.imprint"
+      },
+      {
+        "selector": "a",
+        "text": "×",
+        "href": null
+      },
+      {
+        "selector": "a",
+        "text": "Die Seite ist nicht für diesen Browser optimiert.",
+        "href": "//webnav.browserInfo?pUrl=webnav.systemstatus"
+      },
+      {
+        "selector": "a",
+        "text": "This site is not optimised for your browser.",
+        "href": "webnav.browserInfo?pUrl=webnav.systemstatus"
+      },
+      {
+        "selector": "button",
+        "text": "Maria Sagastume Giron",
+        "href": null
+      },
+      {
+        "selector": "button",
+        "text": "DE",
+        "href": null
+      },
+      {
+        "selector": "button",
+        "text": "Bedienstete",
+        "href": null
+      },
+      {
+        "selector": "button",
+        "text": "Filtern",
+        "href": null
+      },
+      {
+        "selector": "button",
+        "text": "Sortierung (aufsteigend)",
+        "href": null
+      },
+      {
+        "selector": "button",
+        "text": "Nach oben",
+        "href": null
+      }
+    ]
+  },
+  "student_card_data": {
+    "url": "https://campus.tum.de/tumonline/wbstudkart.wbstudent",
+    "matrikelnummer": "03781850",
+    "nachname": null,
+    "vorname": null,
+    "email": null,
+    "geburtsdatum": null,
+    "geburtsort": null,
+    "telefon": null,
+    "geschlecht": null,
+    "basisinformationen": {
+      "Geschlecht": "Bitte wählen...\nMännlich\nWeiblich\nDivers\nUnbekannt",
+      "UNI-Card\nVisitenkarte": "UNI-Card\nVisitenkarte",
+      "Teilnahme an Lehrveranstaltungen": "Teilnahme an Lehrveranstaltungen"
+    },
+    "weitere_informationen": {},
+    "text_preview": "Maria Sagastume Giron\nDE\nStudierendenkartei / Sagastume Giron, Maria Isabel\nMaria Sagastume Giron (03781850), Haupthörer, gemeldet zum Sommersemester 2026\nSupport Hilfe\nAktionen\nAktionen\nStamm-/Studiendaten\talle Prüfungen\tAbschlüsse\tLV-Teilnahmen\n\n\nStamm-/Studiendaten\nBasisinformationen\nMatrikelnummer\t\n\nFamilien- oder Nachname\t\n\nVorname\t\n\nNamenszusatz\t\n\nakad. Grad\t\n\nGeburtsdatum\t\n\nGeschlecht\t\nBitte wählen...\nMännlich\nWeiblich\nDivers\nUnbekannt\n\t\nWeitere Informationen\nTelefon / Mobiltelefon\t\n\t\n\t\t\n\nStudienort\t\n\nStudienzulassung gemäß\t\n\nReifeprüfung\t\n\nIncoming\t\n\nStaatsangehörigkeit\t\n\nExmatrikulationsgrund\t\n\nE-Mail\t\n\nGeburtsort\t\n\t\nFoto\n\n\n\t\nUNI-Card\nVisitenkarte\n\n\nStudien-ID\n \n\tSPO-\nVersionen\t\nBeginn-Ende\n \n\tFachsem.\n1/2\tStatus\tgültig gesetzt am\t1\t2\tStudium\tErgprfg\n1630 17 030\t20211\t01.10.2023 -\t\n6 /\n\t\nI\n\t\t1\t\tInformatik\t\n\n\nHeimatadresse\nwohnhaft bei (c/o):\t\n\nStraße\t\n\nPostleitzahl/Ort\t\n\t\n\t\t\n\nLand\t\n\t\nStudienadresse\nwohnhaft bei (c/o):\t\n\nStraße\t\n\nPostleitzahl/Ort\t\n\t\n\t\t\n\nLand\t\n\t\t\t\n\n\n\n\n© 2026 CAMPUSonline. Alle Rechte vorbehalten.\n\nAnleitungen | Datenschutz | Kontakt | Impressum"
+  }
+}

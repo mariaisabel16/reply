@@ -3,12 +3,17 @@ import getpass
 import json
 import re
 import sys
+import os
 from datetime import datetime
 
 try:
     from playwright.async_api import async_playwright
 except ImportError:
-    async_playwright = None
+    print("Playwright ist nicht installiert.")
+    print("Installa mit:")
+    print("  pip install playwright")
+    print("  playwright install chromium")
+    sys.exit(1)
 
 try:
     from rich.console import Console
@@ -17,11 +22,10 @@ try:
     from rich import box
     from rich.rule import Rule
 except ImportError:
-    Console = None
-    Panel = None
-    Table = None
-    box = None
-    Rule = None
+    print("Rich ist nicht installiert.")
+    print("Installa mit:")
+    print("  pip install rich")
+    sys.exit(1)
 
 HOME_URL = "https://campus.tum.de/tumonline/ee/ui/ca2/app/desktop/#/home?$ctx=lang=DE"
 LOGIN_URL = "https://campus.tum.de/tumonline/ee/ui/ca2/app/desktop/#/login"
@@ -29,47 +33,33 @@ CURRICULUM_URL = "https://campus.tum.de/tumonline/ee/ui/ca2/app/desktop/#/slc.cm
 STUDENT_CARD_URL = "https://campus.tum.de/tumonline/wbstudkart.wbstudent"
 TIMEOUT = 20000
 
-console = Console() if Console is not None else None
-
-
-def ensure_runtime_dependencies() -> None:
-    if async_playwright is None:
-        print("Playwright ist nicht installiert.")
-        print("Installiere mit:")
-        print("  pip install playwright")
-        print("  playwright install chromium")
-        sys.exit(1)
-    if console is None:
-        print("Rich ist nicht installiert.")
-        print("Installiere mit:")
-        print("  pip install rich")
-        sys.exit(1)
+console = Console()
 
 
 def print_header():
     console.print(
         Panel.fit(
-            "[bold green]TUMonline Scraper[/bold green]\n"
-            "[dim]Automatischer Login + Curriculum + Studierendenkartei[/dim]",
-            border_style="green",
+            "[bold green]Campus Co-Pilot Scraper[/bold green]\n"
+            "[dim]SSO Session Handling + Curriculum + Studierendenkartei[/dim]",
+            border_style="green"
         )
     )
 
 
 def print_step(msg: str):
-    console.print(f"[cyan]->[/cyan] {msg}")
+    console.print(f"[cyan]→[/cyan] {msg}")
 
 
 def print_ok(msg: str):
-    console.print(f"[green]OK[/green] {msg}")
+    console.print(f"[green]✓[/green] {msg}")
 
 
 def print_warn(msg: str):
-    console.print(f"[yellow]WARN[/yellow] {msg}")
+    console.print(f"[yellow]⚠[/yellow] {msg}")
 
 
 def print_error(msg: str):
-    console.print(f"[red]ERR[/red] {msg}")
+    console.print(f"[red]✗[/red] {msg}")
 
 
 def clean_text(text: str) -> str:
@@ -97,31 +87,24 @@ def extract_semester(text: str):
         r"(Studienbeitrag\s+\d{4}\s*[SW])",
     ]
     for pat in patterns:
-        match = re.search(pat, text, re.IGNORECASE | re.DOTALL)
-        if match:
-            return match.group(1).strip()
+        m = re.search(pat, text, re.IGNORECASE | re.DOTALL)
+        if m:
+            return m.group(1).strip()
     return None
 
 
 def extract_matrikelnummer(text: str):
     text = normalize_for_regex(text)
-    match = re.search(r"\b\d{7,8}\b", text)
-    return match.group(0) if match else None
+    m = re.search(r"\b\d{7,8}\b", text)
+    return m.group(0) if m else None
 
 
 def extract_name(text: str):
     text = clean_text(text)
     lines = [line.strip() for line in text.splitlines() if line.strip()]
     blacklist = {
-        "DE",
-        "EN",
-        "Mein Studium",
-        "Studienstatus",
-        "Planung",
-        "Aktivitaet",
-        "Semesterplan",
-        "Module",
-        "Pruefungen",
+        "DE", "EN", "Mein Studium", "Studienstatus",
+        "Planung", "Aktivität", "Semesterplan", "Module", "Prüfungen"
     }
     for line in lines[:30]:
         if line in blacklist:
@@ -129,7 +112,7 @@ def extract_name(text: str):
         if re.search(r"\d", line):
             continue
         if len(line.split()) >= 2 and len(line) < 80:
-            if not any(keyword in line.lower() for keyword in ["studium", "credits", "durchschnitt"]):
+            if not any(x in line.lower() for x in ["studium", "credits", "durchschnitt"]):
                 return line
     return None
 
@@ -145,11 +128,11 @@ def extract_ects(text: str):
         r"(\d+(?:[.,]\d+)?)\s*/\s*(\d+(?:[.,]\d+)?).*?Credits",
     ]
     for pat in patterns:
-        match = re.search(pat, text, re.IGNORECASE | re.DOTALL)
-        if match:
+        m = re.search(pat, text, re.IGNORECASE | re.DOTALL)
+        if m:
             return {
-                "ects_current": match.group(1).replace(",", "."),
-                "ects_total": match.group(2).replace(",", "."),
+                "ects_current": m.group(1).replace(",", "."),
+                "ects_total": m.group(2).replace(",", "."),
             }
     return None
 
@@ -157,65 +140,33 @@ def extract_ects(text: str):
 def extract_average(text: str):
     text = normalize_for_regex(text)
     patterns = [
+        r"Vorläufige\s+Durchschnittsnote\s*(\d+(?:[.,]\d+)?)",
         r"Vorlaeufige\s+Durchschnittsnote\s*(\d+(?:[.,]\d+)?)",
         r"Durchschnittsnote\s*(\d+(?:[.,]\d+)?)",
         r"Notendurchschnitt\s*(\d+(?:[.,]\d+)?)",
+        r"Vorläufige\s+Durchschnittsnote.*?(\d+(?:[.,]\d+)?)",
         r"Durchschnitt.*?(\d+(?:[.,]\d+)?)",
     ]
     for pat in patterns:
-        match = re.search(pat, text, re.IGNORECASE | re.DOTALL)
-        if match:
-            return match.group(1).replace(",", ".")
+        m = re.search(pat, text, re.IGNORECASE | re.DOTALL)
+        if m:
+            return m.group(1).replace(",", ".")
     return None
 
 
 def extract_study_status(text: str):
     text = normalize_for_regex(text)
     patterns = [
-        r"(Studienstatus.*?)(?:Planung|Aktivitaet|Vorlaeufige Durchschnittsnote|$)",
+        r"(Studienstatus.*?)(?:Planung|Aktivität|Vorläufige Durchschnittsnote|$)",
         r"(Studienbeitrag\s+\d{4}\s*[SW])",
     ]
     values = []
     for pat in patterns:
-        for match in re.finditer(pat, text, re.IGNORECASE | re.DOTALL):
-            value = clean_text(match.group(1))
+        for m in re.finditer(pat, text, re.IGNORECASE | re.DOTALL):
+            value = clean_text(m.group(1))
             if value and value not in values:
                 values.append(value)
     return values if values else None
-
-
-def normalize_scraped_agent_input(
-    scrape_result: dict,
-    *,
-    program: str = "TUM Studium",
-    interests: list[str] | None = None,
-    desired_ects: int = 18,
-    master_goal: str = "Data Engineering",
-    agent_task: str = "Plane mein naechstes Semester, schlage passende Module vor und bereite die Anmeldung vor.",
-) -> dict:
-    curriculum_data = scrape_result.get("curriculum_data", {})
-    student_card_data = scrape_result.get("student_card_data", {})
-    ects = curriculum_data.get("ects") or {}
-    first_name = student_card_data.get("vorname") or ""
-    last_name = student_card_data.get("nachname") or ""
-    full_name = f"{first_name} {last_name}".strip() or curriculum_data.get("name") or "Student"
-
-    return {
-        "user_id": student_card_data.get("matrikelnummer") or curriculum_data.get("matrikelnummer") or "tum_user",
-        "name": full_name,
-        "program": program,
-        "semester_label": curriculum_data.get("semester"),
-        "desired_ects": desired_ects,
-        "master_goal": master_goal,
-        "agent_task": agent_task,
-        "interests": interests or ["Machine Learning", "Data Science"],
-        "total_ects": float(ects.get("ects_current", 0) or 0),
-        "study_status": curriculum_data.get("study_status") or [],
-        "study_history": [],
-        "blocked_slots": [],
-        "preferred_free_days": [],
-        "source": "tumonline_scraper",
-    }
 
 
 async def get_body_text(page):
@@ -230,19 +181,19 @@ async def get_tables(page):
     try:
         tables = page.locator("table")
         table_count = await tables.count()
-        for index in range(table_count):
-            table = tables.nth(index)
+        for i in range(table_count):
+            table = tables.nth(i)
             rows = table.locator("tr")
             row_count = await rows.count()
             parsed_rows = []
-            for row_index in range(row_count):
-                row = rows.nth(row_index)
+            for r in range(row_count):
+                row = rows.nth(r)
                 cells = row.locator("th, td")
                 cell_count = await cells.count()
                 values = []
-                for cell_index in range(cell_count):
+                for c in range(cell_count):
                     try:
-                        values.append(clean_text(await cells.nth(cell_index).inner_text()))
+                        values.append(clean_text(await cells.nth(c).inner_text()))
                     except Exception:
                         values.append("")
                 if any(values):
@@ -265,16 +216,16 @@ async def get_cards(page):
     ]
     cards = []
     seen = set()
-    for selector in selectors:
+    for sel in selectors:
         try:
-            loc = page.locator(selector)
+            loc = page.locator(sel)
             count = await loc.count()
-            for index in range(count):
+            for i in range(count):
                 try:
-                    text = clean_text(await loc.nth(index).inner_text())
-                    if text and text not in seen:
-                        seen.add(text)
-                        cards.append({"selector": selector, "text": text})
+                    txt = clean_text(await loc.nth(i).inner_text())
+                    if txt and txt not in seen:
+                        seen.add(txt)
+                        cards.append({"selector": sel, "text": txt})
                 except Exception:
                     pass
         except Exception:
@@ -289,8 +240,8 @@ async def get_links(page):
         try:
             loc = page.locator(selector)
             count = await loc.count()
-            for index in range(count):
-                item = loc.nth(index)
+            for i in range(count):
+                item = loc.nth(i)
                 try:
                     text = clean_text(await item.inner_text())
                 except Exception:
@@ -324,7 +275,7 @@ async def extract_status_widgets(page):
             "ects_total": ects_match.group(2).replace(",", "."),
         }
     avg_match = re.search(
-        r"Vorlaeufige\s+Durchschnittsnote\s*(\d+(?:[.,]\d+)?)",
+        r"Vorläufige\s+Durchschnittsnote\s*(\d+(?:[.,]\d+)?)",
         body_text_norm,
         re.IGNORECASE | re.DOTALL,
     )
@@ -337,25 +288,28 @@ async def extract_module_tiles(page):
     text = await get_body_text(page)
     text = normalize_for_regex(text)
     modules = []
-    pattern = r"([^\n]+?)\s+POSITIV\s+(\d+(?:[.,]\d+)?)\s*/\s*(\d+(?:[.,]\d+)?)\s*Credits"
-    for match in re.finditer(pattern, text, re.IGNORECASE | re.DOTALL):
-        module_name = clean_text(match.group(1))
-        if module_name:
-            modules.append(
-                {
-                    "module_name": module_name,
-                    "status": "POSITIV",
-                    "credits_current": match.group(2).replace(",", "."),
-                    "credits_total": match.group(3).replace(",", "."),
-                }
-            )
+    patterns = [
+        r"([^\n]+?)\s+POSITIV\s+(\d+(?:[.,]\d+)?)\s*/\s*(\d+(?:[.,]\d+)?)\s*Credits",
+    ]
+    for pat in patterns:
+        for m in re.finditer(pat, text, re.IGNORECASE | re.DOTALL):
+            module_name = clean_text(m.group(1))
+            if module_name:
+                modules.append(
+                    {
+                        "module_name": module_name,
+                        "status": "POSITIV",
+                        "credits_current": m.group(2).replace(",", "."),
+                        "credits_total": m.group(3).replace(",", "."),
+                    }
+                )
     deduped = []
     seen = set()
-    for module in modules:
-        key = (module["module_name"], module["credits_current"], module["credits_total"])
+    for mod in modules:
+        key = (mod["module_name"], mod["credits_current"], mod["credits_total"])
         if key not in seen:
             seen.add(key)
-            deduped.append(module)
+            deduped.append(mod)
     return deduped
 
 
@@ -391,34 +345,34 @@ async def maybe_dismiss_password_popup(page):
 
 
 async def click_first_visible(page, selectors, timeout=8000):
-    for selector in selectors:
+    for sel in selectors:
         try:
-            loc = page.locator(selector).first
+            loc = page.locator(sel).first
             await loc.wait_for(state="visible", timeout=timeout)
             await loc.click()
-            return True, selector
+            return True, sel
         except Exception:
             continue
     return False, None
 
 
 async def fill_first_visible(page, selectors, value, timeout=8000):
-    for selector in selectors:
+    for sel in selectors:
         try:
-            loc = page.locator(selector).first
+            loc = page.locator(sel).first
             await loc.wait_for(state="visible", timeout=timeout)
             await loc.click()
             await maybe_dismiss_password_popup(page)
             await loc.fill("")
             await loc.fill(value)
-            return True, selector
+            return True, sel
         except Exception:
             continue
     return False, None
 
 
 async def automated_login(page, username: str, password: str):
-    print_step("Oeffne TUMonline Login-Seite...")
+    print_step("Öffne TUMonline Login-Seite...")
     await page.goto(LOGIN_URL, wait_until="domcontentloaded", timeout=TIMEOUT)
     await page.wait_for_timeout(2000)
 
@@ -470,6 +424,32 @@ async def automated_login(page, username: str, password: str):
         raise RuntimeError("Konnte das Passwort-Feld im zweiten Login-Formular nicht finden.")
     print_ok(f"Passwort eingetragen mit Selector: {pass_sel}")
 
+    # --- UPDATED CHECKBOX LOGIC ---
+    print_step("Prüfe 'Angemeldet bleiben' Checkbox...")
+    try:
+        # Methode 1: Suchen nach dem sichtbaren Text aus dem Screenshot.
+        # In Playwright ist es oft am sichersten, einfach auf den Text neben der Checkbox zu klicken.
+        checkbox_label = page.get_by_text(re.compile(r"angemeldet bleiben", re.IGNORECASE)).first
+        
+        if await checkbox_label.is_visible():
+            # Wir klicken direkt auf das Label, was die Checkbox aktiviert
+            await checkbox_label.click()
+            print_ok("✅ 'Angemeldet bleiben' erfolgreich angeklickt (via Text-Locator).")
+            
+        else:
+            # Fallback: Falls der Text aus irgendeinem Grund nicht gefunden wird,
+            # greifen wir blind die allererste Checkbox auf der Seite (es gibt laut Bild nur zwei, und das ist die erste).
+            first_checkbox = page.locator('input[type="checkbox"]').first
+            if await first_checkbox.is_visible():
+                await first_checkbox.check()
+                print_ok("✅ Erste gefundene Checkbox aktiviert (Fallback).")
+            else:
+                print_warn("Keine Checkbox auf der Seite gefunden.")
+                
+    except Exception as e:
+        print_warn(f"Fehler bei der Checkbox-Auswahl: {e}")
+    # -------------------------------
+
     print_step("Klicke auf 'LOGIN'...")
     submit_ok, submit_sel = await click_first_visible(
         page,
@@ -489,7 +469,7 @@ async def automated_login(page, username: str, password: str):
     await page.wait_for_timeout(4000)
 
     current_url = page.url.lower()
-    if any(marker in current_url for marker in ["login", "shibboleth", "idp"]):
+    if any(x in current_url for x in ["login", "shibboleth", "idp"]):
         await page.screenshot(path="debug_login_not_finished.png", full_page=True)
         raise RuntimeError("Login scheint nicht abgeschlossen zu sein; Seite ist noch im Login-/SSO-Flow.")
     print_ok("Login erfolgreich abgeschlossen.")
@@ -515,8 +495,9 @@ async def extract_student_card_data(page):
     try:
         tables = page.locator("table")
         table_count = await tables.count()
-        for table_index in range(table_count):
-            table = tables.nth(table_index)
+
+        for i in range(table_count):
+            table = tables.nth(i)
             table_text = clean_text(await table.inner_text())
 
             if not any(keyword in table_text for keyword in ["Basisinformationen", "Weitere Informationen"]):
@@ -526,19 +507,19 @@ async def extract_student_card_data(page):
             row_count = await rows.count()
             current_section = None
 
-            for row_index in range(row_count):
-                row = rows.nth(row_index)
+            for r in range(row_count):
+                row = rows.nth(r)
                 cells = row.locator("th, td")
                 cell_count = await cells.count()
-                values = []
 
-                for cell_index in range(cell_count):
+                values = []
+                for c in range(cell_count):
                     try:
-                        values.append(clean_text(await cells.nth(cell_index).inner_text()))
+                        values.append(clean_text(await cells.nth(c).inner_text()))
                     except Exception:
                         values.append("")
 
-                values = [value for value in values if value]
+                values = [v for v in values if v]
                 if not values:
                     continue
 
@@ -556,9 +537,9 @@ async def extract_student_card_data(page):
                     label, value = values[0], values[1]
                     result[current_section][label] = value
                 elif len(values) >= 4 and current_section == "weitere_informationen":
-                    for index in range(0, len(values) - 1, 2):
-                        label = values[index]
-                        value = values[index + 1] if index + 1 < len(values) else ""
+                    for j in range(0, len(values) - 1, 2):
+                        label = values[j]
+                        value = values[j + 1] if j + 1 < len(values) else ""
                         if label:
                             result[current_section][label] = value
     except Exception:
@@ -572,8 +553,8 @@ async def extract_student_card_data(page):
             container = label_loc.locator("xpath=ancestor::tr[1]")
             if await container.count() > 0:
                 cell_text = clean_text(await container.inner_text())
-                parts = [part.strip() for part in cell_text.split("\n") if part.strip()]
-                filtered = [part for part in parts if part != label_text]
+                parts = [p.strip() for p in cell_text.split("\n") if p.strip()]
+                filtered = [p for p in parts if p != label_text]
                 if filtered:
                     return filtered[0]
 
@@ -587,6 +568,8 @@ async def extract_student_card_data(page):
         return None
 
     basis = result["basisinformationen"]
+    weitere = result["weitere_informationen"]
+
     result["matrikelnummer"] = (
         basis.get("Matrikelnummer")
         or await extract_value_near_label("Matrikelnummer")
@@ -598,27 +581,29 @@ async def extract_student_card_data(page):
 
 def render_summary(curriculum_data: dict, student_card_data: dict | None = None):
     console.print()
-    console.print(Rule("[bold green]TUMonline Uebersicht[/bold green]"))
+    console.print(Rule("[bold green]TUMonline Übersicht[/bold green]"))
 
     student_card_data = student_card_data or {}
-    first_name = student_card_data.get("vorname") or ""
-    last_name = student_card_data.get("nachname") or ""
-    full_name = f"{first_name} {last_name}".strip()
+    vorname = student_card_data.get("vorname") or ""
+    nachname = student_card_data.get("nachname") or ""
+    full_name = f"{vorname} {nachname}".strip()
 
     name = full_name or curriculum_data.get("name") or "Nicht gefunden"
     semester = curriculum_data.get("semester") or "Nicht gefunden"
     matrikelnummer = student_card_data.get("matrikelnummer") or "Nicht gefunden"
     avg = curriculum_data.get("average") or "Nicht gefunden"
+
     ects = curriculum_data.get("ects") or {}
     ects_current = ects.get("ects_current", "Nicht gefunden")
     ects_total = ects.get("ects_total", "Nicht gefunden")
+    email = student_card_data.get("email") or "Nicht gefunden"
 
     summary = (
         f"[bold]Name:[/bold] {name}\n"
         f"[bold]Matrikelnummer:[/bold] {matrikelnummer}\n"
         f"[bold]Semester / Status:[/bold] {semester}\n"
         f"[bold]ECTS:[/bold] {ects_current} / {ects_total}\n"
-        f"[bold]Vorlaeufige Durchschnittsnote:[/bold] {avg}"
+        f"[bold]Vorläufige Durchschnittsnote:[/bold] {avg}"
     )
 
     console.print(Panel(summary, title="Zusammenfassung", border_style="cyan"))
@@ -631,8 +616,8 @@ def render_status_table(data: dict):
     table.add_column("Wert", style="white")
 
     if status_values:
-        for index, value in enumerate(status_values, start=1):
-            table.add_row(f"Status {index}", value)
+        for i, value in enumerate(status_values, start=1):
+            table.add_row(f"Status {i}", value)
     else:
         table.add_row("Status", "[dim]Nicht gefunden[/dim]")
 
@@ -647,10 +632,10 @@ def render_modules_table(data: dict):
     table.add_column("Credits", style="cyan")
 
     if modules:
-        for module in modules:
-            current = module.get("credits_current", "?")
-            total = module.get("credits_total", "?")
-            table.add_row(module.get("module_name", ""), module.get("status", ""), f"{current}/{total}")
+        for mod in modules:
+            current = mod.get("credits_current", "?")
+            total = mod.get("credits_total", "?")
+            table.add_row(mod.get("module_name", ""), mod.get("status", ""), f"{current}/{total}")
     else:
         table.add_row("[dim]Keine Module erkannt[/dim]", "", "")
 
@@ -662,7 +647,10 @@ def render_student_card_table(data: dict):
     table.add_column("Feld", style="bold white")
     table.add_column("Wert", style="white")
 
-    fields = [("Matrikelnummer", data.get("matrikelnummer"))]
+    fields = [
+        ("Matrikelnummer", data.get("matrikelnummer")),
+    ]
+
     for label, value in fields:
         table.add_row(label, value or "[dim]Nicht gefunden[/dim]")
 
@@ -672,22 +660,30 @@ def render_student_card_table(data: dict):
 def render_files_panel():
     text = (
         "[bold]Gespeicherte Dateien:[/bold]\n"
-        "- tum_curriculum.png\n"
-        "- tum_curriculum_body.txt\n"
-        "- tum_curriculum_data.json\n"
-        "- studierendenkartei.png\n"
-        "- studierendenkartei_body.txt\n"
-        "- tum_agent_input.json"
+        "• tum_session_state.json (Neu: Gespeicherte Session)\n"
+        "• tum_curriculum.png\n"
+        "• tum_curriculum_body.txt\n"
+        "• tum_curriculum_data.json\n"
+        "• studierendenkartei.png\n"
+        "• studierendenkartei_body.txt"
     )
     console.print(Panel(text, title="Output", border_style="magenta"))
 
 
-async def main():
-    ensure_runtime_dependencies()
-    print_header()
+async def scrape_tumonline(
+    username: str = None,
+    password: str = None,
+    headless: bool = None,
+    session_file: str = "tum_session_state.json",
+    save_debug_screenshots: bool = False
+) -> dict:
+    has_session = os.path.exists(session_file)
 
-    username = console.input("[bold]TUM-Kennung[/bold]: ").strip()
-    password = getpass.getpass("Passwort: ")
+    if not has_session and (not username or not password):
+        raise ValueError(f"Keine Session in '{session_file}' gefunden. Benutzername und Passwort werden benötigt.")
+
+    if headless is None:
+        headless = has_session
 
     result = {
         "scraped_at": datetime.now().isoformat(),
@@ -699,9 +695,8 @@ async def main():
     }
 
     async with async_playwright() as pw:
-        print_step("Starte Browser...")
         browser = await pw.chromium.launch(
-            headless=False,
+            headless=headless,
             slow_mo=100,
             args=[
                 "--disable-features=AutofillServerCommunication,PasswordManagerEnabled",
@@ -713,56 +708,90 @@ async def main():
             viewport={"width": 1440, "height": 950},
             locale="de-DE",
             timezone_id="Europe/Berlin",
+            storage_state=session_file if has_session else None
         )
 
         page = await context.new_page()
 
-        try:
-            await automated_login(page, username, password)
-        except Exception as exc:
-            print_error(str(exc))
-            print_warn("Debug-Screenshots wurden gespeichert, falls moeglich.")
-            await browser.close()
-            return
+        if not has_session:
+            try:
+                await automated_login(page, username, password)
+                await context.storage_state(path=session_file)
+            except Exception as e:
+                await browser.close()
+                raise RuntimeError(f"Login fehlgeschlagen: {e}")
 
-        print_step("Oeffne Curriculum-Seite...")
         await page.goto(CURRICULUM_URL, wait_until="domcontentloaded", timeout=TIMEOUT)
         await page.wait_for_timeout(5000)
 
-        await page.screenshot(path="tum_curriculum.png", full_page=True)
-        print_ok("Screenshot gespeichert: tum_curriculum.png")
+        current_url = page.url.lower()
+        if any(x in current_url for x in ["login", "shibboleth", "idp"]):
+            await browser.close()
+            raise RuntimeError("Session ist ungültig oder abgelaufen. Bitte lösche die Session-Datei und starte neu.")
 
-        curriculum_body_text = await get_body_text(page)
-        with open("tum_curriculum_body.txt", "w", encoding="utf-8") as handle:
-            handle.write(curriculum_body_text)
-        print_ok("Body-Text gespeichert: tum_curriculum_body.txt")
+        if save_debug_screenshots:
+            await page.screenshot(path="tum_curriculum.png", full_page=True)
+            curriculum_body_text = await get_body_text(page)
+            with open("tum_curriculum_body.txt", "w", encoding="utf-8") as f:
+                f.write(curriculum_body_text)
 
         result["curriculum_data"] = await scrape_curriculum_page(page)
-        print_ok("Curriculum-Daten extrahiert.")
 
-        print_step("Oeffne Studierendenkartei...")
         await page.goto(STUDENT_CARD_URL, wait_until="domcontentloaded", timeout=TIMEOUT)
         await page.wait_for_timeout(5000)
 
-        await page.screenshot(path="studierendenkartei.png", full_page=True)
-        print_ok("Screenshot gespeichert: studierendenkartei.png")
-
-        student_card_body_text = await get_body_text(page)
-        with open("studierendenkartei_body.txt", "w", encoding="utf-8") as handle:
-            handle.write(student_card_body_text)
-        print_ok("Body-Text gespeichert: studierendenkartei_body.txt")
+        if save_debug_screenshots:
+            await page.screenshot(path="studierendenkartei.png", full_page=True)
+            student_card_body_text = await get_body_text(page)
+            with open("studierendenkartei_body.txt", "w", encoding="utf-8") as f:
+                f.write(student_card_body_text)
 
         result["student_card_data"] = await extract_student_card_data(page)
-        print_ok("Studierendenkartei-Daten extrahiert.")
 
-        with open("tum_curriculum_data.json", "w", encoding="utf-8") as handle:
-            json.dump(result, handle, ensure_ascii=False, indent=2)
+        await browser.close()
+        return result
+
+
+def get_tumonline_data(username: str = None, password: str = None, session_file: str = "tum_session_state.json") -> dict:
+    """
+    Synchronous wrapper for agents to fetch TUMonline data.
+    """
+    return asyncio.run(scrape_tumonline(
+        username=username, 
+        password=password, 
+        headless=True, 
+        session_file=session_file, 
+        save_debug_screenshots=False
+    ))
+
+
+async def main():
+    print_header()
+
+    SESSION_FILE = "tum_session_state.json"
+    has_session = os.path.exists(SESSION_FILE)
+
+    if not has_session:
+        username = console.input("[bold]TUM-Kennung[/bold]: ").strip()
+        password = getpass.getpass("Passwort: ")
+    else:
+        console.print(f"[bold green]Vorhandene Session ({SESSION_FILE}) gefunden. Überspringe Login-Abfrage.[/bold green]")
+        username, password = None, None
+
+    try:
+        print_step("Starte Extraktion...")
+        result = await scrape_tumonline(
+            username=username, 
+            password=password, 
+            headless=None, 
+            session_file=SESSION_FILE,
+            save_debug_screenshots=True
+        )
+        print_ok("Extraktion erfolgreich abgeschlossen.")
+
+        with open("tum_curriculum_data.json", "w", encoding="utf-8") as f:
+            json.dump(result, f, ensure_ascii=False, indent=2)
         print_ok("Daten gespeichert: tum_curriculum_data.json")
-
-        agent_input = normalize_scraped_agent_input(result)
-        with open("tum_agent_input.json", "w", encoding="utf-8") as handle:
-            json.dump(agent_input, handle, ensure_ascii=False, indent=2)
-        print_ok("Agent-Input gespeichert: tum_agent_input.json")
 
         curriculum_data = result["curriculum_data"]
         student_card_data = result["student_card_data"]
@@ -773,16 +802,8 @@ async def main():
         render_student_card_table(student_card_data)
         render_files_panel()
 
-        console.print()
-        console.print("[dim]Browser bleibt offen. Mit Ctrl+C beenden.[/dim]")
-
-        try:
-            await asyncio.Future()
-        except KeyboardInterrupt:
-            pass
-
-        await browser.close()
-        print_ok("Browser geschlossen.")
+    except Exception as e:
+        print_error(str(e))
 
 
 if __name__ == "__main__":
