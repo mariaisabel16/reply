@@ -40,10 +40,13 @@ def _truthy(raw: str | None, default: bool) -> bool:
 
 @dataclass(frozen=True)
 class Settings:
+    bedrock_region: str
+    bedrock_model_id: str
     openai_api_key: str
     openai_model: str
     ollama_base_url: str
     ollama_model: str
+    nat_api_base_url: str
     nat_semester_url_template: str
     nat_http_timeout_s: float
     use_fixture_if_nat_fails: bool
@@ -58,10 +61,14 @@ def load_settings() -> Settings:
     except ValueError:
         timeout = 20.0
     return Settings(
+        bedrock_region=os.environ.get("BEDROCK_REGION", "eu-central-1").strip() or "eu-central-1",
+        bedrock_model_id=os.environ.get("BEDROCK_MODEL_ID", "").strip(),
         openai_api_key=os.environ.get("OPENAI_API_KEY", "").strip(),
         openai_model=os.environ.get("OPENAI_MODEL", "gpt-4o-mini").strip(),
         ollama_base_url=os.environ.get("OLLAMA_BASE_URL", "").strip().rstrip("/"),
         ollama_model=os.environ.get("OLLAMA_MODEL", "llama3.2").strip(),
+        nat_api_base_url=os.environ.get("NAT_API_BASE_URL", "https://api.srv.nat.tum.de").strip().rstrip("/")
+        or "https://api.srv.nat.tum.de",
         nat_semester_url_template=os.environ.get("NAT_SEMESTER_URL_TEMPLATE", "").strip(),
         nat_http_timeout_s=timeout,
         use_fixture_if_nat_fails=_truthy(os.environ.get("USE_FIXTURE_IF_NAT_FAILS"), True),

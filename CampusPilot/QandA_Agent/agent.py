@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 from typing import Any
 
@@ -7,20 +8,27 @@ from openai import AsyncOpenAI
 
 from config import settings
 from demo_agent import run_demo_turn
-from tools import OPENAI_TOOLS, dispatch_tool_call
+from tools import OPENAI_TOOLS, bedrock_tool_config, dispatch_tool_call
 
 
 SYSTEM_PROMPT = """Du bist ein Studienorganisations-Assistent für TUM-Studierende.
 Du beantwortest Fragen zu Semestern, Fristen, Feiertagen und Prüfungsphasen.
 Nutze ausschließlich die bereitgestellten Tool-Ergebnisse (NAT-API-Daten) als Faktenquelle.
-Wenn Daten fehlen oder das Tool nicht passt, sage das klar und schlage vor, welche Information der Nutzer konkretisieren soll (z. B. Semester-Key wie 2026s).
+NAT-Tools (jeweils GET): `nat_get_semesters`, `nat_get_semesters_list`, `nat_get_semesters_extended`,
+`nat_get_semesters_schedule`, `nat_get_semesters_examperiods`, `nat_get_semesters_dates`, `get_semester_by_key`.
+Wähle das kleinste passende Tool (z. B. `nat_get_semesters_dates` mit `semester_key` statt immer `extended`).
+Wenn der Nutzer keinen Semester-Key nennt, nutze `nat_get_semesters` oder frage nach dem Semester.
+Wenn Daten fehlen oder das Tool nicht passt, sage das klar und schlage vor, welche Information konkretisiert werden soll (z. B. Semester-Key wie 2026s).
 Antworte auf Deutsch, knapp und korrekt; nenne Daten mit Datum und Titel."""
 
 _openai_client: AsyncOpenAI | None = None
 _ollama_client: AsyncOpenAI | None = None
+_bedrock_runtime: Any | None = None
 
 
 def backend_mode() -> str:
+    if settings.bedrock_model_id:
+        return "bedrock"
     if settings.openai_api_key:
         return "openai"
     if settings.ollama_base_url:
@@ -50,6 +58,20 @@ def _ollama_client() -> AsyncOpenAI:
     return _ollama_client
 
 
+def _bedrock_client() -> Any:
+    global _bedrock_runtime
+    try:
+        import boto3
+    except ImportError as e:
+        raise RuntimeError("boto3 is required for Bedrock; install with: pip install boto3") from e
+    if _bedrock_runtime is None:
+        _bedrock_runtime = boto3.client(
+            service_name="bedrock-runtime",
+            region_name=settings.bedrock_region,
+        )
+    return _bedrock_runtime
+
+
 def _normalize_messages(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
     out: list[dict[str, Any]] = []
     for m in messages:
@@ -70,6 +92,109 @@ def _normalize_messages(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
             continue
         out.append({"role": role, "content": content})
     return out
+
+
+def _chat_messages_to_bedrock(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Map normalized user/assistant string messages to Bedrock Converse content blocks."""
+    out: list[dict[str, Any]] = []
+    for m in messages:
+        role = m.get("role")
+        if role not in ("user", "assistant"):
+            continue
+        content = m.get("content")
+        if not isinstance(content, str):
+            continue
+        out.append({"role": role, "content": [{"text": content}]})
+    return out
+
+
+def _bedrock_message_text(message: dict[str, Any]) -> str:
+    parts: list[str] = []
+    for block in message.get("content") or []:
+        if isinstance(block, dict) and "text" in block:
+            t = block.get("text")
+            if isinstance(t, str) and t:
+                parts.append(t)
+    return "\n".join(parts).strip()
+
+
+def _bedrock_tool_result_json_value(parsed: Any) -> dict[str, Any]:
+    """
+    Bedrock Converse requires each toolResult.content[].json to be a JSON object.
+    NAT tools often return a top-level array; wrap non-dicts as {"result": ...}.
+    """
+    if isinstance(parsed, dict):
+        return parsed
+    return {"result": parsed}
+
+
+async def _run_bedrock_tool_loop(messages: list[dict[str, Any]]) -> tuple[str, list[dict[str, Any]]]:
+    brt = _bedrock_client()
+    conversation = _chat_messages_to_bedrock(_normalize_messages(messages))
+    system_prompt = [{"text": SYSTEM_PROMPT}]
+    tool_config = bedrock_tool_config()
+    transcript: list[dict[str, Any]] = []
+
+    for _ in range(8):
+
+        def _converse() -> dict[str, Any]:
+            return brt.converse(
+                modelId=settings.bedrock_model_id,
+                messages=conversation,
+                system=system_prompt,
+                toolConfig=tool_config,
+                inferenceConfig={"maxTokens": 2048, "temperature": 0.2},
+            )
+
+        response = await asyncio.to_thread(_converse)
+        stop = response.get("stopReason")
+        msg = response["output"]["message"]
+        conversation.append(msg)
+
+        if stop == "tool_use":
+            tool_results: list[dict[str, Any]] = []
+            for block in msg.get("content") or []:
+                if not isinstance(block, dict) or "toolUse" not in block:
+                    continue
+                tu = block["toolUse"]
+                name = tu.get("name", "")
+                args = tu.get("input") if isinstance(tu.get("input"), dict) else {}
+                args_json = json.dumps(args, ensure_ascii=False)
+                result = await dispatch_tool_call(str(name), args_json)
+                try:
+                    result_obj: Any = json.loads(result)
+                except json.JSONDecodeError:
+                    result_obj = {"text": result}
+                bedrock_json = _bedrock_tool_result_json_value(result_obj)
+                transcript.append(
+                    {
+                        "tool": name,
+                        "arguments": args_json,
+                        "result_preview": result if len(result) <= 2000 else result[:2000] + "…",
+                    }
+                )
+                tool_results.append(
+                    {
+                        "toolResult": {
+                            "toolUseId": tu["toolUseId"],
+                            "status": "success",
+                            "content": [{"json": bedrock_json}],
+                        }
+                    }
+                )
+            if not tool_results:
+                raise RuntimeError("tool_use ohne ausführbare toolUse-Blöcke")
+            conversation.append({"role": "user", "content": tool_results})
+            continue
+
+        text = _bedrock_message_text(msg)
+        if text:
+            return text, transcript
+        if stop in ("end_turn", "max_tokens"):
+            raise RuntimeError("Leere Modellantwort ohne Tool-Use")
+        raise RuntimeError(f"Unerwarteter Bedrock-Stop: {stop!r}")
+
+    return "Abbruch: zu viele Tool-Schritte.", transcript
 
 
 async def _run_tool_loop(client: AsyncOpenAI, model: str, messages: list[dict[str, Any]]) -> tuple[str, list[dict[str, Any]]]:
@@ -126,10 +251,15 @@ async def _run_tool_loop(client: AsyncOpenAI, model: str, messages: list[dict[st
 async def run_chat_turn(messages: list[dict[str, Any]]) -> tuple[str, list[dict[str, Any]]]:
     """
     Returns (assistant_text, transcript for debug).
-    Priority: OpenAI (API key) > Ollama (OLLAMA_BASE_URL) > deterministic demo.
+    Priority: Amazon Bedrock (BEDROCK_MODEL_ID, boto3 converse) > OpenAI > Ollama > deterministic demo.
     """
+    if settings.bedrock_model_id:
+        print("using bedrock")
+        return await _run_bedrock_tool_loop(messages)
     if settings.openai_api_key:
+        print("using openai")
         return await _run_tool_loop(_openai_client(), settings.openai_model, messages)
     if settings.ollama_base_url:
+        print("using ollama")
         return await _run_tool_loop(_ollama_client(), settings.ollama_model, messages)
     return await run_demo_turn(messages)

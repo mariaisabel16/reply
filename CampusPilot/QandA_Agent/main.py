@@ -5,7 +5,7 @@ Run from this directory (CampusPilot/QandA_Agent):
   py -3.11 -m venv .venv
   .venv\\Scripts\\activate
   python -m pip install -r requirements.txt
-  copy ENV.example .env   # optional: OPENAI_API_KEY or OLLAMA_BASE_URL; else demo mode
+  copy ENV.example .env   # optional: BEDROCK_MODEL_ID and AWS creds, or OPENAI_API_KEY, or OLLAMA_BASE_URL; else demo
   python -m uvicorn main:app --reload --port 8010
 
 See SETUP.txt for Windows / pip issues.
@@ -21,7 +21,7 @@ from pydantic import BaseModel, Field, field_validator
 
 from agent import backend_mode, run_chat_turn
 
-app = FastAPI(title="QandA Agent", version="0.1.0")
+app = FastAPI(title="TUM CampusPilot QandA", version="0.1.0")
 
 app.add_middleware(
     CORSMiddleware,
