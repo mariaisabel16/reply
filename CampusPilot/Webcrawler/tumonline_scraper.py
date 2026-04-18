@@ -37,7 +37,7 @@ STUDENT_CARD_URL = "https://demo.campus.tum.de/DSYSTEM/wbstudkart.wbstudent"
 TIMEOUT          = 20000
 
 # ── Output directory — session folders are created here each run ──
-OUTPUT_DIR = Path(__file__).resolve().parent.parent / "Agent" / "TemporaryUserInfoFiles"
+OUTPUT_DIR = Path(__file__).resolve().parent.parent / "TemporaryUserInfoFiles"
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 SESSION_DIR: Path = OUTPUT_DIR  # overridden at runtime
 
