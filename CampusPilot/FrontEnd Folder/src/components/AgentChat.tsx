@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { sendAgentMessage, type ChatHistoryItem } from "../agentApi";
+import { BRAND } from "../branding";
 import "./AgentChat.css";
 
 type Role = "user" | "assistant";
@@ -20,8 +21,8 @@ export function AgentChat() {
       id: createId(),
       role: "assistant",
       content:
-        "Hallo. Stell eine Frage zu Semesterdaten – z. B. **Welche Feiertage gibt es im Semester 2026s?** " +
-        "Die Antwort kommt vom **QandA-Agent** (CampusPilot/QandA_Agent). Ohne API-Key läuft ein **Demo-Modus** mit echten JSON-Daten; mit Ollama oder OpenAI siehe ENV.example im Agent-Ordner.",
+        `Hallo — ich bin der Assistent von **${BRAND.name}**. Stell eine Frage zu Semesterdaten, z. B. **Welche Feiertage gibt es im Semester 2026s?** ` +
+          "Antworten kommen vom **QandA-Agent** (Backend unter CampusPilot/QandA_Agent). Ohne API-Key läuft ein **Demo-Modus** mit echten JSON-Daten; mit Ollama oder OpenAI siehe ENV.example dort.",
     },
   ]);
   const [draft, setDraft] = useState("");
@@ -76,14 +77,14 @@ export function AgentChat() {
   }
 
   return (
-    <section className="agent-chat" aria-label="Konversation mit dem KI-Agenten">
+    <section className="agent-chat" aria-label={`Konversation mit ${BRAND.name}`}>
       <div className="agent-chat-inner">
         <div className="agent-chat-head">
           <div>
-            <h1 className="agent-chat-title">Schreib mit dem Agenten</h1>
+            <h1 className="agent-chat-title">Frag den CampusPilot</h1>
             <p className="agent-chat-lede">
-              Angebunden an den CampusPilot-QandA-Agent (FastAPI). Demo ohne OpenAI, optional Ollama oder
-              OpenAI-Key.
+              {BRAND.name}: organisatorische Infos zur TUM — verbunden mit dem QandA-Agent (FastAPI). Demo ohne
+              OpenAI, optional Ollama oder OpenAI-Key.
             </p>
           </div>
         </div>

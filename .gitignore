@@ -1,0 +1,24 @@
+# --- Environment / secrets (all folders) ---
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# --- Python (typical repo-wide) ---
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# --- OS / editor ---
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.idea/

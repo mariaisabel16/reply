@@ -1,8 +1,8 @@
-# CampusPilot Hero Flow
+# TUM CampusPilot — Hero Flow
 
 ## Ziel
 
-CampusPilot plant das naechste Semester nach einem einmaligen Login. Der Agent sammelt Studienstand, Interessen, Masterziel und die aktuelle Aufgabe, rankt passende Module, prueft Konflikte und Deadlines, fuehrt eine TUMonline-Aktion aus und gibt klares Feedback zurueck.
+TUM CampusPilot (CampusPilot an der TUM) plant das naechste Semester nach einem einmaligen Login. Der Agent sammelt Studienstand, Interessen, Masterziel und die aktuelle Aufgabe, rankt passende Module, prueft Konflikte und Deadlines, fuehrt eine TUMonline-Aktion aus und gibt klares Feedback zurueck.
 
 ## Hauptablauf
 

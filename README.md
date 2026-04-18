@@ -1,4 +1,6 @@
-# reply
+# reply — **TUM CampusPilot**
+
+Studentisches Hilfstool (Arbeitstitel): **CampusPilot** für die **TU München** — Marke im UI: **TUM CampusPilot**.
 
 ## QandA-Agent (NAT-API; OpenAI, Ollama oder Demo)
 

@@ -1,5 +1,7 @@
 import "./App.css";
+import { BRAND } from "./branding";
 import { AgentChat } from "./components/AgentChat";
+import { CompanionMascot } from "./components/CompanionMascot";
 
 export function App() {
   return (
@@ -9,8 +11,8 @@ export function App() {
         <div className="app-brand">
           <span className="app-logo" aria-hidden />
           <div>
-            <p className="app-title">KI-Agent</p>
-            <p className="app-subtitle">Chat · React</p>
+            <p className="app-title">{BRAND.name}</p>
+            <p className="app-subtitle">{BRAND.tagline}</p>
           </div>
         </div>
         <div className="app-header-actions">
@@ -20,6 +22,7 @@ export function App() {
       <main className="app-main">
         <AgentChat />
       </main>
+      <CompanionMascot />
     </div>
   );
 }
