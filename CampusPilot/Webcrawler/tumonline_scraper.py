@@ -40,7 +40,8 @@ HOME_URL         = f"{BASE_URL}/ee/ui/ca2/app/desktop/#/home?$ctx=lang=DE"
 LOGIN_URL        = f"{BASE_URL}/ee/ui/ca2/app/desktop/#/login"
 CURRICULUM_URL   = f"{BASE_URL}/ee/ui/ca2/app/desktop/#/slc.cm.cs/student/myStudies/1089084/myCurriculumElements/2917690?$ctx=design=ca;lang=DE&$filter=active-eq=true;currentlyValid-eq=true;partOfCurriculum-eq=true"
 STUDENT_CARD_URL = f"{BASE_URL}/wbstudkart.wbstudent"
-ACHIEVEMENTS_URL = f"{BASE_URL}/ee/ui/ca2/app/desktop/#/slc.xm.ac/achievements?$ctx=lang=DE"
+ACHIEVEMENTS_URL  = f"{BASE_URL}/ee/ui/ca2/app/desktop/#/slc.xm.ac/achievements?$ctx=lang=DE"
+STUDIENSTATUS_URL = f"{BASE_URL}/ee/ui/ca2/app/desktop/#pl/ui/$ctx/studienstatus.ht6ststatusDetail?$ctx=design=ca2;header=max;lang=de&pBasisStudNr=1089084&pEditable=FALSE&pOrgnr=&pStPersonNr=2326956"
 TIMEOUT          = 20000
 
 # ── Output directory ──────────────────────────
@@ -165,6 +166,72 @@ async def automated_login(page: Page, username: str, password: str):
     if any(x in page.url.lower() for x in ["login", "shibboleth", "idp"]):
         raise RuntimeError("Login did not complete successfully.")
     console.print("[green]✓[/green] Login successful!")
+
+
+# ─────────────────────────────────────────────
+# SECTION 0 — CURRENT SEMESTER
+# ─────────────────────────────────────────────
+async def scrape_semester(page: Page) -> dict:
+    """
+    Discovered from body text: "Studienbeitrag 2026 S" → current semester label
+    Discovered from Studienstatus page: "Anzahl Semester gemeldet:6" → semester number
+    Both are on the Mein Studium / curriculum page body.
+    """
+    console.print("[cyan]→[/cyan] Extracting semester info from curriculum page...")
+    await page.goto(CURRICULUM_URL, wait_until="domcontentloaded", timeout=TIMEOUT)
+    await page.wait_for_timeout(4000)
+
+    body = await get_body_text(page)
+    norm = normalize_for_regex(body)
+
+    result = {
+        "current_semester_label": None,   # e.g. "2026 S"
+        "current_semester_number": None,  # e.g. 6  (Fachsemester)
+        "study_program": None,            # e.g. "Informatik [20211], Bachelor of Science"
+        "total_semesters_enrolled": None, # from Studienstatus: "Anzahl Semester gemeldet:6"
+    }
+
+    # 1. Semester label from "Studienbeitrag 2026 S" or "Vorgemerkte Lehrveranstaltungen 2026 S"
+    m = re.search(r"Studienbeitrag\s+(\d{4}\s*[SW])", norm)
+    if not m:
+        m = re.search(r"Vorgemerkte Lehrveranstaltungen\s+(\d{4}\s*[SW])", norm)
+    if m:
+        result["current_semester_label"] = m.group(1).strip()
+
+    # 2. Study program from "Informatik [20211], Bachelor of Science (1630 17 030)"
+    m2 = re.search(r"(Informatik\s*\[.*?\],\s*Bachelor[^(\n]+)", norm)
+    if m2:
+        result["study_program"] = m2.group(1).strip()
+
+    # 3. Navigate to Studienstatus page to get "Anzahl Semester gemeldet:X"
+    #    and current Fachsemester (highest number in table)
+    try:
+        await page.goto(STUDIENSTATUS_URL, wait_until="domcontentloaded", timeout=TIMEOUT)
+        await page.wait_for_timeout(3000)
+        status_body = await get_body_text(page)
+
+        # "Anzahl Semester gemeldet:6"
+        m3 = re.search(r"Anzahl Semester gemeldet\s*[:\s]\s*(\d+)", status_body)
+        if m3:
+            result["total_semesters_enrolled"] = int(m3.group(1))
+            result["current_semester_number"]  = int(m3.group(1))
+
+        # Also parse the table for the current row (26S = gemeldet, highest Fachsemester)
+        # Format: "26S  gemeldet  01.04.2026  6 Fachsemester - Fach 1"
+        fach_matches = re.findall(r"(\d+[SW])\s+gemeldet\s+[\d.]+\s+(\d+)\s+Fachsemester", status_body)
+        if fach_matches:
+            # Take the one with the highest Fachsemester number
+            latest = max(fach_matches, key=lambda x: int(x[1]))
+            result["current_semester_number"] = int(latest[1])
+            result["current_semester_code"]   = latest[0]  # e.g. "26S"
+
+    except Exception as e:
+        console.print(f"[yellow]⚠[/yellow] Could not fetch Studienstatus: {e}")
+
+    console.print(f"[green]✓[/green] Semester: {result['current_semester_label']} "
+                  f"(Fachsemester {result['current_semester_number']})")
+    return result
+
 
 
 # ─────────────────────────────────────────────
@@ -448,7 +515,7 @@ async def scrape_grades(page: Page) -> list:
 # ─────────────────────────────────────────────
 # DISPLAY
 # ─────────────────────────────────────────────
-def display_summary(curriculum: dict, student: dict, modules: list):
+def display_summary(curriculum: dict, student: dict, modules: list, semester: dict = None):
     console.print()
     console.print(Rule("[bold green]TUMonline Demo — Full Summary[/bold green]"))
 
@@ -459,7 +526,8 @@ def display_summary(curriculum: dict, student: dict, modules: list):
     console.print(Panel(
         f"[bold]Name:[/bold]              {curriculum.get('name') or 'N/A'}\n"
         f"[bold]Matrikelnummer:[/bold]    {student.get('matrikelnummer') or 'N/A'}\n"
-        f"[bold]Semester:[/bold]          {curriculum.get('semester') or 'N/A'}\n"
+        f"[bold]Current Semester:[/bold]  {(semester or {}).get('current_semester_label','N/A')} (Fachsemester {(semester or {}).get('current_semester_number','?')})\n"
+        f"[bold]Semester code:[/bold]     {(semester or {}).get('current_semester_code','N/A')}\n"
         f"[bold]ECTS (curriculum):[/bold] "
         f"{(curriculum.get('ects') or {}).get('ects_current','?')} / "
         f"{(curriculum.get('ects') or {}).get('ects_total','?')}\n"
@@ -545,6 +613,9 @@ async def main():
             await browser.close()
             return
 
+        # ── Semester ─────────────────────────────────
+        semester = await scrape_semester(page)
+
         # ── Curriculum ────────────────────────────
         curriculum = await scrape_curriculum(page)
         console.print("[green]✓[/green] Curriculum data extracted.")
@@ -573,9 +644,14 @@ async def main():
     })
     save_json("user.json", student)
     save_json("study_plan.json", {
-        "semester": curriculum.get("semester"),
-        "ects":     curriculum.get("ects"),
-        "average":  curriculum.get("average"),
+        "semester":               curriculum.get("semester"),
+        "current_semester_label":  semester.get("current_semester_label"),
+        "current_semester_number": semester.get("current_semester_number"),
+        "current_semester_code":   semester.get("current_semester_code"),
+        "total_semesters_enrolled":semester.get("total_semesters_enrolled"),
+        "study_program":           semester.get("study_program"),
+        "ects":                    curriculum.get("ects"),
+        "average":                 curriculum.get("average"),
     })
     save_json("modules.json", {
         "scraped_at":  datetime.now().isoformat(),
@@ -593,7 +669,7 @@ async def main():
     })
 
     # ── Display ───────────────────────────────
-    display_summary(curriculum, student, modules)
+    display_summary(curriculum, student, modules, semester)
     console.print(f"\n[bold]All files saved to:[/bold] {SESSION_DIR}")
 
 

@@ -1,0 +1,49 @@
+{
+  "scraped_at": "2026-04-18T22:42:49.214034",
+  "environment": "demo.campus.tum.de",
+  "curriculum_data": {
+    "name": "Maria Sagastume Giron",
+    "semester": null,
+    "matrikelnummer": null,
+    "ects": {
+      "ects_current": "142",
+      "ects_total": "180"
+    },
+    "average": "3.19",
+    "modules": [
+      {
+        "module_name": "Pflichtmodul Seminar",
+        "status": "POSITIV",
+        "credits_current": "5",
+        "credits_total": "5"
+      },
+      {
+        "module_name": "Pflichtmodule Informatik",
+        "status": "POSITIV",
+        "credits_current": "72",
+        "credits_total": "72"
+      },
+      {
+        "module_name": "Pflichtmodule Mathematik",
+        "status": "POSITIV",
+        "credits_current": "36",
+        "credits_total": "36"
+      },
+      {
+        "module_name": "Wahlmodule Überfachliche Grundlagen",
+        "status": "POSITIV",
+        "credits_current": "6",
+        "credits_total": "6"
+      }
+    ]
+  },
+  "student_card_data": {
+    "matrikelnummer": "03781850",
+    "basisinformationen": {
+      "Geschlecht": "Bitte wählen...\nMännlich\nWeiblich\nDivers\nUnbekannt",
+      "UNI-Card\nVisitenkarte": "UNI-Card\nVisitenkarte",
+      "Teilnahme an Lehrveranstaltungen": "Teilnahme an Lehrveranstaltungen"
+    },
+    "weitere_informationen": {}
+  }
+}
