@@ -13,6 +13,13 @@ See SETUP.txt for Windows / pip issues.
 
 from __future__ import annotations
 
+import asyncio
+import sys
+
+# Playwright spawns a subprocess; on Windows SelectorEventLoop raises NotImplementedError.
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+
 from typing import Annotated, Any
 
 from fastapi import Cookie, Depends, FastAPI, HTTPException, Response
@@ -20,6 +27,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, field_validator
 
 from agent import backend_mode, run_chat_turn
+from campus_crawl import CrawlStatusResponse, get_crawl_status_for_user
 from campuspilot_auth import (
     SESSION_COOKIE_NAME,
     AuthUser,
@@ -89,6 +97,11 @@ async def auth_me_cookie(
     campuspilot_session: Annotated[str | None, Cookie(alias=SESSION_COOKIE_NAME)] = None,
 ) -> MeResponse:
     return await me(campuspilot_session)
+
+
+@app.get("/auth/crawl-status", response_model=CrawlStatusResponse)
+async def auth_crawl_status(user: Annotated[AuthUser, Depends(require_auth_user)]) -> CrawlStatusResponse:
+    return CrawlStatusResponse(**get_crawl_status_for_user(user.user_id))
 
 
 @app.post("/chat", response_model=ChatResponse)

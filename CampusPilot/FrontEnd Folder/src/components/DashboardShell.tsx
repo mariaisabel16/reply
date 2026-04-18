@@ -1,5 +1,6 @@
 import { BRAND } from "../branding";
 import { AgentChat } from "./AgentChat";
+import { CampusCrawlPanel } from "./CampusCrawlPanel";
 import "./DashboardShell.css";
 
 type Props = {
@@ -133,14 +134,8 @@ export function DashboardShell({ username }: Props) {
             </pre>
           </section>
 
-          <section className="dash-card dash-study" aria-labelledby="study-title">
-            <h2 id="study-title" className="dash-card-title dash-card-title--sm">
-              Study lab / Tutor
-            </h2>
-            <p className="dash-muted">Analyze study materials (mock).</p>
-            <button type="button" className="dash-upload-btn">
-              Upload slides
-            </button>
+          <section className="dash-card dash-study dash-study--crawl" aria-labelledby="crawl-title">
+            <CampusCrawlPanel />
           </section>
 
           <section className="dash-card dash-interop" aria-labelledby="interop-title">

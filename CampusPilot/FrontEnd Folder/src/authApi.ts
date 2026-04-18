@@ -46,3 +46,21 @@ export async function logoutTum(): Promise<void> {
   const base = agentApiBase();
   await fetch(`${base}/auth/logout`, { method: "POST", credentials: "include" });
 }
+
+export type CrawlStatusResponse = {
+  status: "idle" | "pending" | "running" | "ok" | "error";
+  message?: string | null;
+  scraped_at?: string | null;
+  data?: Record<string, unknown> | null;
+};
+
+export async function fetchCrawlStatus(): Promise<CrawlStatusResponse | null> {
+  const base = agentApiBase();
+  const res = await fetch(`${base}/auth/crawl-status`, { credentials: "include" });
+  if (res.status === 401) return null;
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text || `HTTP ${res.status}`);
+  }
+  return (await res.json()) as CrawlStatusResponse;
+}

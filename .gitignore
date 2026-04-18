@@ -6,6 +6,7 @@
 
 # --- CampusPilot local auth DB ---
 CampusPilot/QandA_Agent/data/
+CampusPilot/QandA_Agent/.playwright-browsers/
 
 # --- Python (typical repo-wide) ---
 .venv/

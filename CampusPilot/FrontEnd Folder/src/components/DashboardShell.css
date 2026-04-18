@@ -285,6 +285,14 @@
   min-height: 0;
 }
 
+/* TUMonline crawl brings its own .crawl-panel shell */
+.dash-study--crawl.dash-card {
+  padding: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+}
+
 .dash-card-head {
   display: flex;
   align-items: center;

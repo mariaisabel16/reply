@@ -21,6 +21,7 @@ from cryptography.fernet import Fernet, InvalidToken
 from fastapi import Cookie, HTTPException, Response, status
 from pydantic import BaseModel, Field
 
+from campus_crawl import clear_user, post_login_crawl_enabled, schedule_post_login_crawl
 from config import settings
 
 _DB_PATH = Path(__file__).resolve().parent / "data" / "campuspilot_auth.db"
@@ -62,6 +63,14 @@ def _init_schema_sync() -> None:
                 expires_at REAL NOT NULL
             );
             CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
+            CREATE TABLE IF NOT EXISTS crawl_snapshots (
+                user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+                status TEXT NOT NULL,
+                message TEXT,
+                payload_json TEXT,
+                scraped_at TEXT,
+                updated_at REAL NOT NULL
+            );
             """
         )
         conn.commit()
@@ -83,7 +92,7 @@ def _decrypt_password(token: str) -> str:
         raise RuntimeError("password decrypt failed (wrong CAMPUSPILOT_FERNET_KEY/SECRET?)") from e
 
 
-def _login_sync(username: str, password: str) -> str:
+def _login_sync(username: str, password: str) -> tuple[str, int]:
     now = time.time()
     u = username.strip().lower()
     if not u or not password:
@@ -112,7 +121,24 @@ def _login_sync(username: str, password: str) -> str:
             (sess, user_id, exp),
         )
         conn.commit()
-        return sess
+        return (sess, user_id)
+    finally:
+        conn.close()
+
+
+def _user_credentials_from_db_sync(user_id: int) -> tuple[str, str]:
+    """Load TUM username and plaintext password from users table (decrypt cipher)."""
+    conn = _connect()
+    try:
+        row = conn.execute(
+            "SELECT tum_username, password_cipher FROM users WHERE id = ?",
+            (user_id,),
+        ).fetchone()
+        if not row:
+            raise RuntimeError("user row missing")
+        tum_username = str(row["tum_username"])
+        plain = _decrypt_password(str(row["password_cipher"]))
+        return (tum_username, plain)
     finally:
         conn.close()
 
@@ -179,7 +205,7 @@ class AuthUser(BaseModel):
 
 async def login_user(body: LoginBody, response: Response) -> MeResponse:
     try:
-        token = await asyncio.to_thread(_login_sync, body.tum_username, body.tum_password)
+        token, user_id = await asyncio.to_thread(_login_sync, body.tum_username, body.tum_password)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
     response.set_cookie(
@@ -191,10 +217,20 @@ async def login_user(body: LoginBody, response: Response) -> MeResponse:
         secure=False,  # localhost dev; set True behind HTTPS in production
         path="/",
     )
+    if post_login_crawl_enabled():
+        try:
+            tum_username, password_plain = await asyncio.to_thread(_user_credentials_from_db_sync, user_id)
+        except RuntimeError:
+            pass
+        else:
+            schedule_post_login_crawl(user_id, tum_username, password_plain)
     return MeResponse(logged_in=True, tum_username=body.tum_username.strip().lower())
 
 
 async def logout_user(response: Response, session: str | None) -> dict[str, bool]:
+    row = await asyncio.to_thread(_resolve_session_sync, session)
+    if row:
+        clear_user(int(row["user_id"]))
     await asyncio.to_thread(_logout_sync, session)
     response.delete_cookie(SESSION_COOKIE_NAME, path="/")
     return {"ok": True}
