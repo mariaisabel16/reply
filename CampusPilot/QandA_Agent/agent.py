@@ -19,7 +19,15 @@ NAT-Tools (jeweils GET): `nat_get_semesters`, `nat_get_semesters_list`, `nat_get
 Wähle das kleinste passende Tool (z. B. `nat_get_semesters_dates` mit `semester_key` statt immer `extended`).
 Wenn der Nutzer keinen Semester-Key nennt, nutze `nat_get_semesters` oder frage nach dem Semester.
 Wenn Daten fehlen oder das Tool nicht passt, sage das klar und schlage vor, welche Information konkretisiert werden soll (z. B. Semester-Key wie 2026s).
-Antworte auf Deutsch, knapp und korrekt; nenne Daten mit Datum und Titel."""
+Für Aufgaben, die einen Login am TUM-Campus-Portal / Shibboleth erfordern (z. B. Modulanmeldung), nutze zuerst
+das Tool `tum_stored_idp_login_status`, um zu prüfen, ob serverseitig Login-Daten für diese Sitzung vorliegen — niemals Passwörter ausgeben oder erfinden.
+Antworte auf Deutsch, knapp und korrekt; nenne Daten mit Datum und Titel.
+
+Formatierung (einheitlich für die Chat-Oberfläche):
+- Nutze Markdown: **fett** für Fristen, Semester-Keys und wichtige Begriffe; kurze Absätze (Leerzeile zwischen Absätzen).
+- Aufzählungen mit `- ` pro Zeile; nummerierte Listen nur bei klarer Reihenfolge.
+- Roh-JSON nicht als Kauderwelsch ausgeben — höchstens kompaktes ```json ... ``` wenn wirklich nötig.
+- Keine überflüssigen Emojis; keine Meta-Kommentare zur internen API."""
 
 _openai_client: AsyncOpenAI | None = None
 _ollama_client: AsyncOpenAI | None = None

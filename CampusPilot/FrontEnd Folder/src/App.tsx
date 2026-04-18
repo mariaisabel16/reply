@@ -1,27 +1,17 @@
+import { useState } from "react";
 import "./App.css";
-import { BRAND } from "./branding";
-import { AgentChat } from "./components/AgentChat";
 import { CompanionMascot } from "./components/CompanionMascot";
+import { DashboardShell } from "./components/DashboardShell";
+import { LoginGate } from "./components/LoginGate";
 
 export function App() {
+  const [sessionUser, setSessionUser] = useState<string | null>(null);
+
   return (
-    <div className="app-shell">
-      <div className="app-glow" aria-hidden />
-      <header className="app-header">
-        <div className="app-brand">
-          <span className="app-logo" aria-hidden />
-          <div>
-            <p className="app-title">{BRAND.name}</p>
-            <p className="app-subtitle">{BRAND.tagline}</p>
-          </div>
-        </div>
-        <div className="app-header-actions">
-          <span className="app-pill">Bereit</span>
-        </div>
-      </header>
-      <main className="app-main">
-        <AgentChat />
-      </main>
+    <div className="app-shell app-shell--dashboard">
+      <LoginGate onSessionChange={setSessionUser}>
+        <DashboardShell username={sessionUser} />
+      </LoginGate>
       <CompanionMascot />
     </div>
   );

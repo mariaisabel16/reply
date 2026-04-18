@@ -12,6 +12,7 @@ from nat_client import (
     nat_get_semesters_list,
     nat_get_semesters_schedule,
 )
+from tool_context import tum_tool_credentials
 
 OPENAI_TOOLS: list[dict[str, Any]] = [
     {
@@ -156,6 +157,24 @@ OPENAI_TOOLS: list[dict[str, Any]] = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "tum_stored_idp_login_status",
+            "description": (
+                "Prüft, ob für diese Sitzung TUM-Weblogin-Daten (LRZ/TUM-Kennung für Shibboleth/IdP) "
+                "auf dem Server verfügbar sind — nur Metadaten, kein Passwort. Nutzen, wenn der Nutzer "
+                "Funktionen braucht, die einen Login am Campus-Portal erfordern (z. B. Modulanmeldung): "
+                "Dann erst dieses Tool, dann klar kommunizieren, was automatisch geht und was noch nicht."
+            ),
+            "parameters": {
+                "type": "object",
+                "additionalProperties": False,
+                "properties": {},
+                "required": [],
+            },
+        },
+    },
 ]
 
 
@@ -241,5 +260,35 @@ async def dispatch_tool_call(name: str, arguments_json: str) -> str:
             return json.dumps({"error": "missing_semester_key"})
         data = await fetch_semester_by_key(key)
         return json.dumps(data, ensure_ascii=False)
+
+    if name == "tum_stored_idp_login_status":
+        creds = tum_tool_credentials.get()
+        if creds is None:
+            return json.dumps(
+                {
+                    "has_stored_credentials": False,
+                    "tum_username": None,
+                    "note": (
+                        "Keine Login-Daten in dieser Anfrage geladen. Der Nutzer sollte sich im "
+                        "CampusPilot-Frontend anmelden."
+                    ),
+                },
+                ensure_ascii=False,
+            )
+        u = creds.tum_username
+        masked = u[:2] + "…" if len(u) > 2 else "…"
+        return json.dumps(
+            {
+                "has_stored_credentials": True,
+                "tum_username_masked": masked,
+                "note": (
+                    "Vollständiger Nutzername und Passwort liegen nur serverintern für diese "
+                    "Anfrage vor (verschlüsselt in der Datenbank gespeichert). Direkte Shibboleth-"
+                    "Browser-Automation (TUMonline/Modulanmeldung) ist im Agenten noch nicht angebunden; "
+                    "weise den Nutzer ggf. auf manuelle Schritte im Portal hin."
+                ),
+            },
+            ensure_ascii=False,
+        )
 
     return json.dumps({"error": "unknown_tool", "name": name})

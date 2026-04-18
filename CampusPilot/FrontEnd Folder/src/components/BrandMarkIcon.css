@@ -1,0 +1,124 @@
+.brand-mark {
+  display: block;
+  overflow: visible;
+}
+
+.brand-mark--animated {
+  transform-origin: 50% 70%;
+  animation: brand-mark-float 3.6s ease-in-out infinite;
+}
+
+.brand-mark--static {
+  animation: none;
+}
+
+.brand-mark__cap {
+  transform-origin: 60px 16px;
+}
+
+.brand-mark--animated .brand-mark__cap {
+  animation: brand-mark-cap-wobble 4.8s ease-in-out infinite;
+}
+
+.brand-mark__scarf {
+  transform-origin: 60px 94px;
+}
+
+.brand-mark--animated .brand-mark__scarf {
+  animation: brand-mark-scarf 4.1s ease-in-out infinite;
+}
+
+.brand-mark__goggles {
+  transform-origin: 60px 58px;
+}
+
+.brand-mark--animated .brand-mark__goggles {
+  animation: brand-mark-goggles 5s ease-in-out infinite;
+}
+
+.brand-mark__prop {
+  transform-origin: 102px 18px;
+}
+
+.brand-mark--animated .brand-mark__prop {
+  animation: brand-mark-prop 2.4s linear infinite;
+}
+
+.brand-mark__mouth {
+  transform-origin: 60px 82px;
+}
+
+.brand-mark--animated .brand-mark__mouth {
+  animation: brand-mark-grin 2.2s ease-in-out infinite;
+}
+
+@keyframes brand-mark-float {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-1.6deg);
+  }
+  50% {
+    transform: translateY(-6px) rotate(1.6deg);
+  }
+}
+
+@keyframes brand-mark-cap-wobble {
+  0%,
+  100% {
+    transform: rotate(-1.6deg);
+  }
+  50% {
+    transform: rotate(1.8deg);
+  }
+}
+
+@keyframes brand-mark-scarf {
+  0%,
+  100% {
+    transform: skewX(-2.5deg);
+  }
+  50% {
+    transform: skewX(2.5deg);
+  }
+}
+
+@keyframes brand-mark-goggles {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-0.8px);
+  }
+}
+
+@keyframes brand-mark-prop {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes brand-mark-grin {
+  0%,
+  100% {
+    transform: scaleX(1);
+  }
+  50% {
+    transform: scaleX(1.04);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brand-mark--animated,
+  .brand-mark--animated .brand-mark__cap,
+  .brand-mark--animated .brand-mark__scarf,
+  .brand-mark--animated .brand-mark__goggles,
+  .brand-mark--animated .brand-mark__prop,
+  .brand-mark--animated .brand-mark__mouth {
+    animation: none;
+  }
+
+  .brand-mark--animated {
+    transform: none;
+  }
+}

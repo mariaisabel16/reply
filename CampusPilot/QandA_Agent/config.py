@@ -50,6 +50,8 @@ class Settings:
     nat_semester_url_template: str
     nat_http_timeout_s: float
     use_fixture_if_nat_fails: bool
+    auth_dev_fallback_secret: str
+    cors_allow_origin_regex: str
 
 
 def load_settings() -> Settings:
@@ -72,6 +74,13 @@ def load_settings() -> Settings:
         nat_semester_url_template=os.environ.get("NAT_SEMESTER_URL_TEMPLATE", "").strip(),
         nat_http_timeout_s=timeout,
         use_fixture_if_nat_fails=_truthy(os.environ.get("USE_FIXTURE_IF_NAT_FAILS"), True),
+        auth_dev_fallback_secret=os.environ.get("CAMPUSPILOT_SECRET", "dev-local-only-insecure").strip()
+        or "dev-local-only-insecure",
+        cors_allow_origin_regex=os.environ.get(
+            "CORS_ALLOW_ORIGIN_REGEX",
+            r"^http://(localhost|127\.0\.0\.1)(:\d+)?$",
+        ).strip()
+        or r"^http://(localhost|127\.0\.0\.1)(:\d+)?$",
     )
 
 
