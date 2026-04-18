@@ -15,6 +15,7 @@ def list_bucket_contents(bucket_name):
         paginator = s3_client.get_paginator('list_objects_v2')
         pages = paginator.paginate(Bucket=bucket_name)
 
+
         object_count = 0
         for page in pages:
             if "Contents" in page:
