@@ -12,29 +12,7 @@ The core of our data pipeline is a two-step process that ensures data quality an
 2.  **Output**: The raw data is saved as individual, potentially messy and unstructured JSON files.
 3.  **Storage**: These files are placed in the `/TemporaryUserInfoFiles` directory, acting as a staging area.
 
-**Example Raw File (`MockUser.json`):**
-```json
-{
-  "userId": "tum_12345",
-  "personal_info": {
-    "firstName": "Max",
-    "lastName": "Mustermann"
-  },
-  "study_details": {
-    "university": "Technische Universität München",
-    "program": "Informatik",
-    "current_semester": 5
-  },
-  "grades": {
-    "totalECTS": 120,
-    "courses_passed": [
-      {"id": "IN0001", "name": "Einführung in die Informatik"},
-      {"id": "MA0001", "name": "Lineare Algebra"}
-    ]
-  },
-  "irrelevant_data": "some_random_login_token_or_html_snippet"
-}
-```
+
 
 ---
 
