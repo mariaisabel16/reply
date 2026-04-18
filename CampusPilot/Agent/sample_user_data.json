@@ -1,0 +1,34 @@
+{
+  "firstName": "Max",
+  "lastName": "Mustermann",
+  "university": "Technische Universitaet Muenchen",
+  "campus": "Garching",
+  "studyProgram": "Informatik",
+  "semester": 4,
+  "desired_ects": 18,
+  "master_goal": "Data Engineering",
+  "agent_task": "Recommend my next modules and enroll me in TUMonline.",
+  "interests": [
+    "Machine Learning",
+    "Data Science",
+    "Software Engineering"
+  ],
+  "blocked_slots": [
+    {
+      "day": "Wednesday",
+      "start": "14:00",
+      "end": "18:00",
+      "label": "Part-time work"
+    }
+  ],
+  "enrolledCourses": [
+    {
+      "courseId": "IN0001",
+      "courseName": "Einfuehrung in die Informatik 1"
+    },
+    {
+      "courseId": "IN0007",
+      "courseName": "Grundlagen Datenbanken"
+    }
+  ]
+}

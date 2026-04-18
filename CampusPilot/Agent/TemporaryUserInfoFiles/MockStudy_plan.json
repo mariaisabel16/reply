@@ -1,0 +1,46 @@
+{
+  "program_id": "B.Sc. Informatik",
+  "current_term": "SS",
+  "total_ects_required": 180,
+  "recommended_ects_per_semester": 18,
+  "max_ects_without_exception": 21,
+  "registration_phase": {
+    "opens": "2026-04-15",
+    "closes": "2026-05-31"
+  },
+  "schedule": [
+    {
+      "semester": 1,
+      "mandatory_modules": [
+        "IN0001",
+        "MA0901"
+      ],
+      "elective_ects": 0
+    },
+    {
+      "semester": 2,
+      "mandatory_modules": [
+        "IN0002"
+      ],
+      "elective_ects": 0
+    },
+    {
+      "semester": 3,
+      "mandatory_modules": [
+        "IN0012"
+      ],
+      "elective_ects": 10
+    },
+    {
+      "semester": 4,
+      "mandatory_modules": [],
+      "elective_ects": 15
+    }
+  ],
+  "elective_rules": {
+    "min_total_elective_ects": 30,
+    "allowed_categories": [
+      "Wahlpflicht"
+    ]
+  }
+}
