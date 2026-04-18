@@ -1,8 +1,13 @@
 import json
 import os
 import re
+import sys
 from datetime import date, datetime
 from typing import Any
+
+CURRENT_DIR = os.path.dirname(__file__)
+if CURRENT_DIR not in sys.path:
+    sys.path.insert(0, CURRENT_DIR)
 
 from bedrock_agent import BedrockAgent
 
@@ -14,8 +19,47 @@ SCORING_WEIGHTS = {
     "material_availability": 0.10,
 }
 
-CURRENT_DATE = date(2026, 4, 18) #automatically set to current date in production
-DEFAULT_RECOMMENDATION_LIMIT = 4# max num of modules to recommend
+CURRENT_DATE = date(2026, 4, 18)
+DEFAULT_RECOMMENDATION_LIMIT = 4
+
+AGENT_INPUT_CONTRACT = {
+    "required": [
+        "program",
+        "current_semester",
+        "current_term",
+        "desired_ects",
+        "interests",
+        "master_goal",
+        "agent_task",
+    ],
+    "optional": [
+        "study_history",
+        "blocked_slots",
+        "preferred_free_days",
+        "pending_requirements",
+        "total_ects",
+        "user_id",
+        "name",
+    ],
+}
+
+AGENT_OUTPUT_CONTRACT = {
+    "top_level_fields": [
+        "hero_flow",
+        "workflow_state",
+        "user_profile",
+        "intent",
+        "recommended_modules",
+        "rejected_modules",
+        "plan_summary",
+        "confirmation_payload",
+        "action_result",
+        "study_slot_suggestions",
+        "library_booking_suggestions",
+        "next_step",
+        "feedback",
+    ]
+}
 
 
 def save_to_vector_db(user_id: str, extracted_data: dict[str, Any]) -> bool:
@@ -28,24 +72,16 @@ def save_to_vector_db(user_id: str, extracted_data: dict[str, Any]) -> bool:
     print("--------------------------------")
     return True
 
-#opens and loads a json file from the given path and returns the data as a Python object (dict or list)
+
 def load_json_file(path: str) -> Any:
     with open(path, "r", encoding="utf-8") as handle:
         return json.load(handle)
 
-#to compare and match text data in a more flexible way, this function normalizes 
-# the input by converting it to lowercase, removing non-alphanumeric
-#  characters, and trimming whitespace. This helps to ensure that
-#  comparisons are not affected by differences in formatting or
-#  case sensitivity.
+
 def normalize_text(value: Any) -> str:
     return re.sub(r"[^a-z0-9]+", " ", str(value).lower()).strip()
 
-#extracts keywords from various types of input data (strings, lists,
-#  dictionaries) by normalizing the text and splitting it into tokens.
-#  It returns a set of keywords that can be used for matching
-#  user interests, module descriptions, and other relevant information
-#  in the recommendation process.
+
 def extract_keywords(value: Any) -> set[str]:
     if value is None:
         return set()
@@ -63,24 +99,18 @@ def extract_keywords(value: Any) -> set[str]:
         return tokens
     return extract_keywords(str(value))
 
-# calculates the overlap ratio between two sets of keywords,
-#  which is used to
+
 def overlap_ratio(left: set[str], right: set[str]) -> float:
     if not left or not right:
         return 0.0
     return round(len(left & right) / len(left), 3)
 
-#compares two time slots to determine if they overlap.
-#  It first checks if the slots are on the same day, and if so,
-#  it compares the start and end times to see if there is any overlap.
-#  This is important for identifying scheduling conflicts between module schedules
-#  and user-blocked time slots.
+
 def parse_time(value: str) -> int:
     hour, minute = value.split(":")
     return int(hour) * 60 + int(minute)
 
-# determines if two time slots overlap by comparing their days
-#  and times.
+
 def slots_overlap(left: dict[str, str], right: dict[str, str]) -> bool:
     if left.get("day") != right.get("day"):
         return False
@@ -88,8 +118,7 @@ def slots_overlap(left: dict[str, str], right: dict[str, str]) -> bool:
         right["start"]
     ) < parse_time(left["end"])
 
-# checks for scheduling conflicts between a module's schedule
-#  and a list of user-blocked time slots.
+
 def module_conflicts_with_slots(
     module_schedule: list[dict[str, str]],
     blocked_slots: list[dict[str, str]],
@@ -110,8 +139,6 @@ def module_conflicts_with_slots(
                 )
     return conflicts
 
-# compares the schedules of two modules to determine if there 
-# are any overlapping time slots,
 
 def modules_conflict(left_module: dict[str, Any], right_module: dict[str, Any]) -> bool:
     for left_slot in left_module.get("schedule", []):
@@ -120,7 +147,6 @@ def modules_conflict(left_module: dict[str, Any], right_module: dict[str, Any]) 
                 return True
     return False
 
-# extracts the set of completed module IDs from the user's study history,
 
 def completed_module_ids(user_profile: dict[str, Any]) -> set[str]:
     completed = set()
@@ -129,11 +155,34 @@ def completed_module_ids(user_profile: dict[str, Any]) -> set[str]:
             completed.add(item["module_id"])
     return completed
 
-# builds a structured study profile from raw user data,
-#  ensuring that all necessary fields are populated and 
-# normalized for use in the recommendation process.
-#  It handles various input formats and provides default
-#  values where needed to create a consistent profile structure.
+
+def parse_term_label(value: str | None) -> str:
+    normalized = normalize_text(value or "")
+    if "wintersemester" in normalized or normalized.startswith("ws"):
+        return "WS"
+    if "sommersemester" in normalized or normalized.startswith("ss"):
+        return "SS"
+    return "SS"
+
+
+def infer_current_semester_from_payload(raw_user_data: dict[str, Any]) -> int:
+    direct_value = raw_user_data.get("current_semester") or raw_user_data.get("semester")
+    if direct_value:
+        try:
+            return int(direct_value)
+        except (TypeError, ValueError):
+            pass
+
+    study_status = raw_user_data.get("study_status", [])
+    if isinstance(study_status, list):
+        joined = " ".join(str(item) for item in study_status)
+        match = re.search(r"(\d+)\.\s*Fachsemester", joined, re.IGNORECASE)
+        if match:
+            return int(match.group(1))
+
+    return 1
+
+
 def build_study_profile(raw_user_data: dict[str, Any], user_id: str | None = None) -> dict[str, Any]:
     name = raw_user_data.get("name")
     if not name:
@@ -145,9 +194,9 @@ def build_study_profile(raw_user_data: dict[str, Any], user_id: str | None = Non
         "user_id": user_id or raw_user_data.get("user_id", "user_123"),
         "name": name or "Student",
         "program": raw_user_data.get("program") or raw_user_data.get("studyProgram", "Unknown"),
-        "current_semester": raw_user_data.get("current_semester")
-        or raw_user_data.get("semester", 1),
-        "current_term": raw_user_data.get("current_term", "SS"),
+        "current_semester": infer_current_semester_from_payload(raw_user_data),
+        "current_term": raw_user_data.get("current_term")
+        or parse_term_label(raw_user_data.get("semester_label")),
         "total_ects": raw_user_data.get("total_ects", 0),
         "desired_ects": raw_user_data.get("desired_ects", 18),
         "master_goal": raw_user_data.get("master_goal", "Data Engineering"),
@@ -160,12 +209,12 @@ def build_study_profile(raw_user_data: dict[str, Any], user_id: str | None = Non
         "pending_requirements": raw_user_data.get("pending_requirements", {}),
         "blocked_slots": raw_user_data.get("blocked_slots", []),
         "preferred_free_days": raw_user_data.get("preferred_free_days", []),
+        "source": raw_user_data.get("source", "mock"),
     }
     profile["completed_module_ids"] = sorted(completed_module_ids(profile))
     return profile
 
-# processes raw user data, builds a structured study profile,
-#  and simulates storing it in a vector database.
+
 def process_and_store_user_info(
     user_data_json_string: str,
     user_id: str = "user_123",
@@ -183,8 +232,45 @@ def process_and_store_user_info(
         print(f"Profile extraction failed: {exc}")
         return None
 
-# determines the user's intent based on their query and profile 
-# information.
+
+def normalize_scraper_export(
+    scraper_export: dict[str, Any],
+    *,
+    interests: list[str] | None = None,
+    master_goal: str = "Data Engineering",
+    desired_ects: int = 18,
+    agent_task: str = "Plane mein naechstes Semester, schlage passende Module vor und bereite die Anmeldung vor.",
+) -> dict[str, Any]:
+    curriculum_data = scraper_export.get("curriculum_data", {})
+    student_card_data = scraper_export.get("student_card_data", {})
+    ects_data = curriculum_data.get("ects") or {}
+
+    first_name = student_card_data.get("vorname") or ""
+    last_name = student_card_data.get("nachname") or ""
+    name = f"{first_name} {last_name}".strip() or curriculum_data.get("name") or "Student"
+
+    return {
+        "user_id": student_card_data.get("matrikelnummer") or curriculum_data.get("matrikelnummer") or "tum_user",
+        "name": name,
+        "program": scraper_export.get("program", "TUM Studium"),
+        "current_semester": infer_current_semester_from_payload(
+            {"study_status": curriculum_data.get("study_status", [])}
+        ),
+        "current_term": parse_term_label(curriculum_data.get("semester")),
+        "semester_label": curriculum_data.get("semester"),
+        "total_ects": float(ects_data.get("ects_current", 0) or 0),
+        "desired_ects": desired_ects,
+        "master_goal": master_goal,
+        "agent_task": agent_task,
+        "interests": interests or ["Machine Learning", "Data Science"],
+        "study_history": [],
+        "pending_requirements": {"source": "tumonline_scraper"},
+        "blocked_slots": [],
+        "preferred_free_days": [],
+        "source": "tumonline_scraper",
+    }
+
+
 def determine_intent(agent: BedrockAgent, user_profile: dict[str, Any], user_query: str) -> dict[str, Any]:
     """
     Uses a simple deterministic intent for the hackathon MVP and only enriches with LLM later.
@@ -198,17 +284,16 @@ def determine_intent(agent: BedrockAgent, user_profile: dict[str, Any], user_que
         },
     }
 
-# checks if a module is offered in the current term by comparing
-#  the module's semester information
+
 def module_is_offered(module: dict[str, Any], current_term: str) -> bool:
     return normalize_text(module.get("semester", "")) == normalize_text(current_term)
 
-# verifies that the user has completed all prerequisite modules required
+
 def prerequisites_met(module: dict[str, Any], user_profile: dict[str, Any]) -> bool:
     completed = set(user_profile.get("completed_module_ids", []))
     return all(prerequisite in completed for prerequisite in module.get("prerequisites", []))
 
-# calculates how well a module matches the user's interests by comparing
+
 def calculate_interest_fit(module: dict[str, Any], user_profile: dict[str, Any]) -> float:
     interest_keywords = extract_keywords(user_profile.get("interests", []))
     module_keywords = extract_keywords(module.get("tags", [])) | extract_keywords(
@@ -216,7 +301,7 @@ def calculate_interest_fit(module: dict[str, Any], user_profile: dict[str, Any])
     )
     return overlap_ratio(interest_keywords, module_keywords)
 
-# calculates how well a module aligns with the user's master goal by comparing
+
 def calculate_master_fit(module: dict[str, Any], user_profile: dict[str, Any]) -> float:
     master_goal_keywords = extract_keywords(user_profile.get("master_goal", ""))
     module_goal_keywords = extract_keywords(module.get("master_tracks", [])) | extract_keywords(
@@ -224,14 +309,14 @@ def calculate_master_fit(module: dict[str, Any], user_profile: dict[str, Any]) -
     )
     return overlap_ratio(master_goal_keywords, module_goal_keywords)
 
-# calculates how well the module's ECTS value fits the user's desired workload,
+
 def calculate_ects_fit(module: dict[str, Any], user_profile: dict[str, Any]) -> float:
     desired_ects = max(int(user_profile.get("desired_ects", 18)), 1)
     ideal_module_size = max(desired_ects / 3, 5)
     distance = abs(module.get("ects", 0) - ideal_module_size)
     return round(max(0.0, 1 - (distance / ideal_module_size)), 3)
 
-#   calculates a conflict-free score for a module based on the user's blocked time slots.
+
 def calculate_conflict_free(module: dict[str, Any], user_profile: dict[str, Any]) -> tuple[float, list[dict[str, Any]]]:
     blocked_slots = user_profile.get("blocked_slots", [])
     conflicts = module_conflicts_with_slots(module.get("schedule", []), blocked_slots)
@@ -455,6 +540,37 @@ def analyze_plan(
     }
 
 
+def build_confirmation_payload(
+    user_profile: dict[str, Any],
+    recommendations: list[dict[str, Any]],
+    plan_checks: dict[str, Any],
+) -> dict[str, Any]:
+    modules_to_confirm = []
+    for module in recommendations:
+        deadline_info = next(
+            item for item in plan_checks["deadline_checks"] if item["module_id"] == module["module_id"]
+        )
+        modules_to_confirm.append(
+            {
+                "module_id": module["module_id"],
+                "name": module["name"],
+                "ects": module["ects"],
+                "deadline_status": deadline_info["status"],
+                "deadline_days_remaining": deadline_info["days_remaining"],
+            }
+        )
+
+    return {
+        "status": "ready_for_confirmation",
+        "student_name": user_profile["name"],
+        "target_system": "TUMonline",
+        "planned_ects": plan_checks["planned_ects"],
+        "modules": modules_to_confirm,
+        "warning_count": len(plan_checks["schedule_conflicts"]),
+        "message": "Bitte die Auswahl pruefen und die Anmeldung bestaetigen.",
+    }
+
+
 def execute_action(
     intent_data: dict[str, Any],
     recommendations: list[dict[str, Any]],
@@ -514,11 +630,91 @@ def execute_action(
     }
 
 
+def build_time_slot(day: str, start: str, end: str, label: str) -> dict[str, str]:
+    return {"day": day, "start": start, "end": end, "label": label}
+
+
+def generate_study_slot_suggestions(
+    user_profile: dict[str, Any],
+    recommendations: list[dict[str, Any]],
+    action_result: dict[str, Any],
+) -> list[dict[str, Any]]:
+    enrolled_module_ids = {
+        result["module_id"]
+        for result in action_result.get("results", [])
+        if result.get("status") == "enrolled"
+    }
+    preferred_days = user_profile.get("preferred_free_days") or ["Tuesday", "Friday"]
+    default_windows = [("09:00", "11:00"), ("14:00", "16:00")]
+    suggestions = []
+
+    for index, module in enumerate(recommendations):
+        if module["module_id"] not in enrolled_module_ids:
+            continue
+        day = preferred_days[index % len(preferred_days)]
+        start, end = default_windows[index % len(default_windows)]
+        suggestions.append(
+            {
+                "module_id": module["module_id"],
+                "module_name": module["name"],
+                "slot": build_time_slot(day, start, end, "Lernslot"),
+                "reason": "Der Slot liegt auf einem bevorzugten freien Tag und direkt in einer planbaren Lernphase.",
+            }
+        )
+
+    return suggestions
+
+
+def generate_library_booking_suggestions(
+    user_profile: dict[str, Any],
+    study_slot_suggestions: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    _ = user_profile
+    bookings = []
+    for suggestion in study_slot_suggestions[:2]:
+        slot = suggestion["slot"]
+        bookings.append(
+            {
+                "module_id": suggestion["module_id"],
+                "library_system": "TUM Library / Anny",
+                "suggested_booking": {
+                    "day": slot["day"],
+                    "start": slot["start"],
+                    "end": slot["end"],
+                },
+                "status": "proposal",
+                "reason": "Der Bibliotheksslot ist direkt an den vorgeschlagenen Lernslot gekoppelt.",
+            }
+        )
+    return bookings
+
+
+def determine_workflow_state(confirm_enrollment: bool, action_result: dict[str, Any]) -> str:
+    if not confirm_enrollment:
+        return "ready_for_confirmation"
+    if action_result.get("status") == "success":
+        return "completed"
+    if action_result.get("status") == "partial_success":
+        return "completed_with_warnings"
+    return action_result.get("status", "unknown")
+
+
+def build_next_step(workflow_state: str) -> str:
+    if workflow_state == "ready_for_confirmation":
+        return "Bestaetige die Anmeldung in TUMonline oder passe Interessen, ECTS oder Zeitpraeferenzen an."
+    if workflow_state == "completed_with_warnings":
+        return "Pruefe die Warnungen, passe die Auswahl an und fuehre den Flow erneut aus."
+    return "Neue Interessen, geaenderten Studienstand oder eine neue Aufgabe angeben."
+
+
 def generate_feedback(
     user_profile: dict[str, Any],
     recommendations: list[dict[str, Any]],
     plan_checks: dict[str, Any],
     action_result: dict[str, Any],
+    study_slot_suggestions: list[dict[str, Any]],
+    workflow_state: str,
+    next_step: str,
 ) -> str:
     recommendation_lines = [
         f"- {module['module_id']}: {module['reason']}"
@@ -535,6 +731,11 @@ def generate_feedback(
         for result in action_result.get("results", [])
     ]
 
+    study_slot_lines = [
+        f"- {item['module_id']}: {item['slot']['day']} {item['slot']['start']}-{item['slot']['end']}"
+        for item in study_slot_suggestions
+    ]
+
     conflict_summary = "keine Zeitkonflikte"
     if plan_checks["schedule_conflicts"]:
         conflict_summary = f"{len(plan_checks['schedule_conflicts'])} Konfliktwarnungen"
@@ -546,6 +747,7 @@ def generate_feedback(
             f"Interessen {', '.join(user_profile['interests'])}, "
             f"Masterziel {user_profile['master_goal']}, gewuenschte {user_profile['desired_ects']} ECTS."
         ),
+        f"Workflow-Status: {workflow_state}.",
         "Empfohlene Module:",
         *recommendation_lines,
         (
@@ -554,11 +756,17 @@ def generate_feedback(
         ),
         "Deadline-Pruefung:",
         *deadline_lines,
-        "TUMonline-Feedback:",
-        *action_lines,
-        "Naechster Schritt: neue Interessen, geaenderten Studienstand oder eine neue Aufgabe angeben.",
     ]
 
+    if action_lines:
+        lines.extend(["TUMonline-Feedback:", *action_lines])
+    else:
+        lines.append("TUMonline-Feedback: Anmeldung ist vorbereitet und wartet auf Bestaetigung.")
+
+    if study_slot_lines:
+        lines.extend(["Lernslot-Vorschlaege:", *study_slot_lines])
+
+    lines.append(f"Naechster Schritt: {next_step}")
     return "\n".join(lines)
 
 
@@ -576,13 +784,30 @@ def run_hero_flow(
     ranked_modules, rejected_modules = eligible_modules(modules, user_profile)
     recommendations = select_recommendations(ranked_modules, user_profile)
     plan_checks = analyze_plan(recommendations, user_profile, study_plan)
+    confirmation_payload = build_confirmation_payload(user_profile, recommendations, plan_checks)
     action_result = execute_action(
         intent_data,
         recommendations,
         plan_checks,
         confirm_enrollment=confirm_enrollment,
     )
-    feedback = generate_feedback(user_profile, recommendations, plan_checks, action_result)
+    workflow_state = determine_workflow_state(confirm_enrollment, action_result)
+    study_slot_suggestions = generate_study_slot_suggestions(
+        user_profile, recommendations, action_result
+    )
+    library_booking_suggestions = generate_library_booking_suggestions(
+        user_profile, study_slot_suggestions
+    )
+    next_step = build_next_step(workflow_state)
+    feedback = generate_feedback(
+        user_profile,
+        recommendations,
+        plan_checks,
+        action_result,
+        study_slot_suggestions,
+        workflow_state,
+        next_step,
+    )
 
     return {
         "hero_flow": [
@@ -590,17 +815,30 @@ def run_hero_flow(
             "capture_interests_study_status_and_agent_task",
             "rank_next_modules_with_weighted_score",
             "check_conflicts_ects_and_deadlines",
+            "request_confirmation_before_action",
             "submit_tumonline_action",
+            "generate_study_slots_and_library_suggestions",
             "return_feedback",
             "loop_back_to_step_2",
         ],
+        "contracts": {
+            "input": AGENT_INPUT_CONTRACT,
+            "output": AGENT_OUTPUT_CONTRACT,
+        },
+        "workflow_state": workflow_state,
         "user_profile": user_profile,
         "intent": intent_data,
-        "recommendations": recommendations,
+        "recommended_modules": recommendations,
         "rejected_modules": rejected_modules,
-        "plan_checks": plan_checks,
+        "plan_summary": plan_checks,
+        "confirmation_payload": confirmation_payload,
         "action_result": action_result,
+        "study_slot_suggestions": study_slot_suggestions,
+        "library_booking_suggestions": library_booking_suggestions,
+        "next_step": next_step,
         "feedback": feedback,
+        "recommendations": recommendations,
+        "plan_checks": plan_checks,
     }
 
 
@@ -628,7 +866,12 @@ if __name__ == "__main__":
     profile = process_and_store_user_info(raw_user_string, user_id=raw_user_data["user_id"])
 
     if profile:
-        hero_flow_result = run_hero_flow(profile, modules_data, study_plan_data)
+        hero_flow_result = run_hero_flow(
+            profile,
+            modules_data,
+            study_plan_data,
+            confirm_enrollment=False,
+        )
         print("\n--- Hero Flow Result ---")
         print(json.dumps(hero_flow_result, indent=2))
         print("\n--- User Feedback ---")
