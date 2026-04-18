@@ -8,3 +8,42 @@ Technischer Stack:
 - Storage & Vector DB: Amazon S3 (mit S3 Vectors / Bedrock Knowledge Bases für RAG)
 - Frontend: React
 
+
+
+Ordner Struktur
+CampusPilot/
+├── Agent/
+│   ├── markdown_context/
+│   │   └── .gitkeep
+│   ├── TemporaryUserInfoFiles/
+│   │   ├── MockModules.json
+│   │   ├── MockScrappedData.json
+│   │   ├── MockStudy_plan.json
+│   │   └── MockUser.json
+│   ├── tests/
+│   ├── bedrock_agent.py
+│   ├── hero_flow.md
+│   ├── prompts.py
+│   ├── sample_user_data.json
+│   └── workflow.py
+├── Api-Methods Folder/
+│   └── Api-Methods
+├── Database/
+│   └── s3_local.py
+├── FrontEnd Folder/
+├── QandA_Agent/
+├── Webcrawler/
+│   ├── requirements.txt
+│   └── tumonline_scraper.py
+├── .env
+├── .gitignore
+├── README.md
+└── requirements.txt
+
+Logik
+1. Login with Tum Credentials
+2. Scrape data about everything important
+3. Load Json data in S3 Bucket
+
+4. Use data to plan next semester
+5. book new Modules automatically

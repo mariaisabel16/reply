@@ -45,13 +45,9 @@ class S3Manager:
     def upload_json(self, s3_key, data_dict):
         """
         Converts a Python dictionary to a JSON string and uploads it to S3.
-
-        :param s3_key: The full key (path) for the object in S3.
-        :param data_dict: The Python dictionary to upload.
         """
         try:
             json_string = json.dumps(data_dict, indent=4)
-            # Upload the string data using put_object
             self.s3_client.put_object(Bucket=self.bucket_name, Key=s3_key, Body=json_string)
             print(f"✅ Successfully uploaded JSON to s3://{self.bucket_name}/{s3_key}")
         except ClientError as e:
@@ -60,9 +56,6 @@ class S3Manager:
     def download_json(self, s3_key):
         """
         Downloads a JSON file from S3 and returns it as a Python dictionary.
-
-        :param s3_key: The full key (path) of the object in S3.
-        :return: A Python dictionary with the JSON content.
         """
         try:
             s3_object = self.s3_client.get_object(Bucket=self.bucket_name, Key=s3_key)
@@ -76,45 +69,71 @@ class S3Manager:
             else:
                 raise Exception(f"Failed to download JSON from S3: {e}")
 
-def test_json_methods():
-    """Tests the upload_json and download_json methods."""
-    print("\n--- Starting JSON Upload/Download Test ---")
-    load_dotenv()
+def loadScrapedDataInBucket(s3_manager, local_folder_path):
+    """
+    Loads all JSON files from a local folder into the S3 bucket under the 'users/' prefix.
+    """
+    print(f"\n--- Starting to load data from '{local_folder_path}' to S3 ---")
     
-    bucket_name = "metadaten-tum-hackathon-reply-top90"
+    if not os.path.isdir(local_folder_path):
+        print(f"❌ Error: Local directory not found at '{local_folder_path}'")
+        return
+
+    files_to_upload = [f for f in os.listdir(local_folder_path) if f.endswith('.json')]
     
-    try:
-        s3_manager = S3Manager(bucket_name=bucket_name)
-        s3_manager.check_or_create_bucket()
+    if not files_to_upload:
+        print("No JSON files found in the directory to upload.")
+        return
 
-        # 1. Prepare test data and S3 key
-        user_profile = {
-            "userId": "user_12345",
-            "firstName": "Max",
-            "studyProgram": "Informatik",
-            "semester": 5,
-            "interests": ["AI", "Data Science", "Quantum Computing"]
-        }
-        s3_key = f"user_profiles/{user_profile['userId']}.json"
+    for file_name in files_to_upload:
+        try:
+            local_file_path = os.path.join(local_folder_path, file_name)
+            with open(local_file_path, 'r') as f:
+                user_data = json.load(f)
 
-        # 2. Upload the JSON data
-        s3_manager.upload_json(s3_key, user_profile)
+            # Assuming the filename is the user ID (e.g., "tum_12345.json")
+            s3_key = f"users/{file_name}"
 
-        # 3. Download the JSON data
-        downloaded_profile = s3_manager.download_json(s3_key)
+            s3_manager.upload_json(s3_key, user_data)
+            
+        except json.JSONDecodeError:
+            print(f"⚠️ Warning: Could not parse JSON from '{file_name}'. Skipping.")
+        except Exception as e:
+            print(f"❌ Error processing file '{file_name}': {e}")
+            
+    print("\n--- Finished loading scraped data ---")
 
-        # 4. Verify the data
-        if user_profile == downloaded_profile:
-            print("✅ Verification successful: Downloaded data matches original data.")
-        else:
-            print("❌ Verification failed: Data mismatch.")
-            print("Original:", user_profile)
-            print("Downloaded:", downloaded_profile)
-        
-        print("\n--- JSON Test Completed Successfully ---")
+    def key_exists(self, s3_key):
+        try:
+            self.s3_client.head_object(Bucket=self.bucket_name, Key=s3_key)
+            return True
+        except ClientError as e:
+            if e.response['Error']['Code'] == '404':
+                return False
+            else:
+                raise e
 
-    except Exception as e:
-        print(f"\n❌ [ERROR] An error occurred during the JSON test: {e}")
+
 
 if __name__ == "__main__":
-    test_json_methods()
+    load_dotenv()
+    
+    BUCKET_NAME = "metadaten-tum-hackathon-reply-top90"
+    
+    try:
+        # Initialize the S3 Manager
+        s3_manager = S3Manager(bucket_name=BUCKET_NAME)
+        s3_manager.check_or_create_bucket()
+
+        # Define the path to the local folder with user data.
+        # This assumes the script is run from the 'Database' directory.
+        # We construct a path to the sibling folder 'TemporaryUserInfoFiles'.
+        base_dir = os.path.dirname(os.path.abspath(__file__)) # /path/to/CampusPilot/Database
+        parent_dir = os.path.dirname(base_dir) # /path/to/CampusPilot
+        local_user_data_folder = os.path.join(parent_dir, "TemporaryUserInfoFiles")
+
+        # Run the function to load the data
+        loadScrapedDataInBucket(s3_manager, local_user_data_folder)
+
+    except Exception as e:
+        print(f"\n❌ [FATAL ERROR] An error occurred in the main process: {e}")

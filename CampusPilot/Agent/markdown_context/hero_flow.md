@@ -1,94 +1,75 @@
-# TUM CampusPilot — Hero Flow
+# Hero Flow: From Raw Data to Structured User Profile
 
-## Ziel
+This document outlines the main workflow for processing raw, scraped user data and storing it in a structured format in our S3 database.
 
-<<<<<<< HEAD
-TUM CampusPilot (CampusPilot an der TUM) plant das naechste Semester nach einem einmaligen Login. Der Agent sammelt Studienstand, Interessen, Masterziel und die aktuelle Aufgabe, rankt passende Module, prueft Konflikte und Deadlines, fuehrt eine TUMonline-Aktion aus und gibt klares Feedback zurueck.
-=======
-CampusPilot plant das naechste Semester nach einem einmaligen Login. Der Agent sammelt Studienstand, Interessen, Masterziel und die aktuelle Aufgabe, rankt passende Module, prueft Konflikte und Deadlines, fordert eine Bestaetigung fuer die TUMonline-Aktion an, fuehrt die Aktion aus und gibt anschliessend Lernslot- und Bibliotheksvorschlaege zurueck.
->>>>>>> 1fadc548634dc2c73016c1ff8ca564df956d81c8
+## The Two-Agent-Process
 
-## Hauptablauf
+The core of our data pipeline is a two-step process that ensures data quality and structure.
 
-1. Student loggt sich einmal ein.
-2. Agent erfasst Interessen, Studienstand, gewuenschte ECTS und die aktuelle Aufgabe.
-3. Agent rankt passende Module mit dieser Formel:
+### Step 1: Data Scraping (First Agent / Webcrawler)
 
-`Score = 0.35 * Interesse + 0.25 * Master-Fit + 0.15 * ECTS-Fit + 0.15 * Konfliktfreiheit + 0.10 * Materialverfuegbarkeit`
+1.  **Action**: A webcrawler or a similar data gathering tool scrapes user information from various sources (e.g., university portals).
+2.  **Output**: The raw data is saved as individual, potentially messy and unstructured JSON files.
+3.  **Storage**: These files are placed in the `/TemporaryUserInfoFiles` directory, acting as a staging area.
 
-4. Agent prueft:
-   - Voraussetzungen
-   - Semesterverfuegbarkeit
-   - Zeitkonflikte
-   - ECTS-Abweichung
-   - Anmelde-Deadlines
-5. Agent erstellt einen `confirmation_payload` fuer die TUMonline-Aktion.
-6. Nach Bestaetigung fuehrt der Agent die TUMonline-Aktion aus oder bereitet sie vor.
-7. Danach erzeugt der Agent:
-   - Lernslot-Vorschlaege
-   - Bibliotheks-/Anny-Vorschlaege
-8. Der Agent gibt strukturiertes Feedback zurueck.
-9. Der Flow springt wieder zu Schritt 2 fuer neue Interessen oder eine neue Aufgabe.
+**Example Raw File (`MockUser.json`):**
+```json
+{
+  "userId": "tum_12345",
+  "personal_info": {
+    "firstName": "Max",
+    "lastName": "Mustermann"
+  },
+  "study_details": {
+    "university": "Technische Universität München",
+    "program": "Informatik",
+    "current_semester": 5
+  },
+  "grades": {
+    "totalECTS": 120,
+    "courses_passed": [
+      {"id": "IN0001", "name": "Einführung in die Informatik"},
+      {"id": "MA0001", "name": "Lineare Algebra"}
+    ]
+  },
+  "irrelevant_data": "some_random_login_token_or_html_snippet"
+}
+```
 
-## Aktueller MVP im Repo
+---
 
-- Deterministische Profil-Erstellung aus Mock-Daten
-- Gewichtetes Modul-Ranking
-- Deadline- und Konfliktpruefung
-- Expliziter Workflow-Status (`ready_for_confirmation`, `completed`, `completed_with_warnings`)
-- `confirmation_payload` fuer Confirm-before-action
-- Simulierte TUMonline-Aktion mit Status pro Modul
-- Lernslot- und Bibliotheksvorschlaege nach erfolgreicher Anmeldung
-- Klarer Text-Output fuer Demo und Pitch
-- Normalisierung eines TUMonline-Scraper-Exports fuer den Agent
+### Step 2: Intelligent Structuring & Upload (Second Agent / `workflow.py`)
 
-## Agent Contract
+This is where the magic happens. The `workflow.py` script acts as our second, intelligent agent.
 
-### Input
+1.  **Trigger**: The workflow is initiated.
+2.  **Action**: The script iterates through all JSON files in the `/TemporaryUserInfoFiles` directory.
+3.  **Intelligence**: For each file, it invokes our **Bedrock Agent** with a specific prompt (`SYSTEM_PROMPT_FILTER_STATIC_USER_DATA`).
+    - The agent's task is to read the messy JSON and extract **only the predefined static user fields** (like `userId`, `firstName`, `totalECTS`, `passedModules`).
+    - All irrelevant or dynamic information is discarded.
+4.  **Output**: The Bedrock Agent returns a clean, structured JSON object.
+5.  **Storage**: This clean JSON object is then uploaded to the S3 bucket (`metadaten-tum-hackathon-reply-top90`) following a strict path convention: `users/{userId}.json`.
 
-Pflichtfelder:
+**Example Structured File (in S3):**
+```json
+{
+    "userId": "tum_12345",
+    "firstName": "Max",
+    "lastName": "Mustermann",
+    "university": "Technische Universität München",
+    "studyProgram": "Informatik",
+    "totalECTS": 120,
+    "passedModules": [
+        {
+            "moduleId": "IN0001",
+            "moduleName": "Einführung in die Informatik"
+        },
+        {
+            "moduleId": "MA0001",
+            "moduleName": "Lineare Algebra"
+        }
+    ]
+}
+```
 
-- `program`
-- `current_semester`
-- `current_term`
-- `desired_ects`
-- `interests`
-- `master_goal`
-- `agent_task`
-
-Optionale Felder:
-
-- `study_history`
-- `blocked_slots`
-- `preferred_free_days`
-- `pending_requirements`
-- `total_ects`
-- `user_id`
-- `name`
-
-### Output
-
-Top-Level-Felder:
-
-- `hero_flow`
-- `workflow_state`
-- `user_profile`
-- `intent`
-- `recommended_modules`
-- `rejected_modules`
-- `plan_summary`
-- `confirmation_payload`
-- `action_result`
-- `study_slot_suggestions`
-- `library_booking_suggestions`
-- `next_step`
-- `feedback`
-
-## Was noch fuer den echten End-to-End Flow fehlt
-
-- Echter Login- und Session-Layer
-- Reale TUMonline-Integration statt Simulations-Action
-- Reale Bibliotheksbuchung statt Vorschlag
-- Echte Modul- und Fristdaten aus TUMonline oder einer stabilen API
-- API zwischen Frontend und Python-Workflow
-- Guardrails im UI fuer Confirm-before-action
+This ensures that our S3 `users/` directory contains only high-quality, consistently structured data, ready for use by the main CampusPilot application.
