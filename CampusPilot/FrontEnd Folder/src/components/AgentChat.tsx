@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { sendAgentMessage, type ChatHistoryItem } from "../agentApi";
 import "./AgentChat.css";
 
 type Role = "user" | "assistant";
@@ -13,21 +14,14 @@ function createId() {
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
-function mockAssistantReply(userText: string) {
-  const trimmed = userText.trim();
-  if (!trimmed) {
-    return "Schreib mir etwas – ich antworte hier (Demo ohne Backend).";
-  }
-  return `Ich habe gelesen: „${trimmed.slice(0, 280)}${trimmed.length > 280 ? "…" : ""}“. Später kannst du hier deinen echten Agenten anbinden.`;
-}
-
 export function AgentChat() {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: createId(),
       role: "assistant",
       content:
-        "Hallo. Ich bin dein KI-Agent (UI-Demo). Stell eine Frage oder beschreib, was du brauchst.",
+        "Hallo. Stell eine Frage zu Semesterdaten – z. B. **Welche Feiertage gibt es im Semester 2026s?** " +
+        "Die Antwort kommt vom **QandA-Agent** (CampusPilot/QandA_Agent). Ohne API-Key läuft ein **Demo-Modus** mit echten JSON-Daten; mit Ollama oder OpenAI siehe ENV.example im Agent-Ordner.",
     },
   ]);
   const [draft, setDraft] = useState("");
@@ -40,7 +34,7 @@ export function AgentChat() {
     el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
   }, [messages, isThinking]);
 
-  function send() {
+  async function send() {
     const text = draft.trim();
     if (!text || isThinking) return;
 
@@ -49,15 +43,36 @@ export function AgentChat() {
     setDraft("");
     setIsThinking(true);
 
-    window.setTimeout(() => {
+    const history: ChatHistoryItem[] = messages
+      .filter((m): m is ChatMessage & { role: "user" | "assistant" } => m.role === "user" || m.role === "assistant")
+      .map((m) => ({ role: m.role, content: m.content }));
+
+    try {
+      const data = await sendAgentMessage(text, history);
+      const body = data.reply.trim() || "(Leere Antwort vom Server.)";
       const reply: ChatMessage = {
         id: createId(),
         role: "assistant",
-        content: mockAssistantReply(text),
+        content: body,
       };
       setMessages((prev) => [...prev, reply]);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: createId(),
+          role: "assistant",
+          content:
+            `**Agent nicht erreichbar:** ${msg}\n\n` +
+            "Bitte Backend starten: cd CampusPilot/QandA_Agent, venv aktivieren, " +
+            "python -m uvicorn main:app --reload --port 8010.\n\n" +
+            "Im Dev-Modus nutzt das Frontend den Vite-Proxy /qanda auf Port 8010.",
+        },
+      ]);
+    } finally {
       setIsThinking(false);
-    }, 650);
+    }
   }
 
   return (
@@ -67,7 +82,8 @@ export function AgentChat() {
           <div>
             <h1 className="agent-chat-title">Schreib mit dem Agenten</h1>
             <p className="agent-chat-lede">
-              Klares Layout, Fokus auf Inhalt – inspiriert vom Look der Next.js-Startseite.
+              Angebunden an den CampusPilot-QandA-Agent (FastAPI). Demo ohne OpenAI, optional Ollama oder
+              OpenAI-Key.
             </p>
           </div>
         </div>
@@ -89,7 +105,7 @@ export function AgentChat() {
                 <span className="agent-thinking-dot" />
                 <span className="agent-thinking-dot" />
                 <span className="agent-thinking-dot" />
-                <span className="agent-thinking-label">Denkt nach…</span>
+                <span className="agent-thinking-label">Agent antwortet…</span>
               </div>
             ) : null}
           </div>
@@ -102,19 +118,19 @@ export function AgentChat() {
               id="agent-input"
               className="agent-input"
               rows={2}
-              placeholder="Nachricht eingeben…"
+              placeholder="z. B. Welche Feiertage gibt es im Semester 2026s?"
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
-                  send();
+                  void send();
                 }
               }}
             />
             <div className="agent-composer-row">
               <p className="agent-hint">Enter senden · Shift+Enter Zeilenumbruch</p>
-              <button type="button" className="agent-send" onClick={send} disabled={isThinking}>
+              <button type="button" className="agent-send" onClick={() => void send()} disabled={isThinking}>
                 Senden
               </button>
             </div>

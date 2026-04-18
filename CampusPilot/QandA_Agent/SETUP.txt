@@ -1,0 +1,61 @@
+Windows / pip: avoid installing into C:\Python311 (system Python)
+===============================================================
+
+Use a virtual environment so nothing is written to C:\Python311\Scripts
+(except creating the venv once, which usually works with `py -3.11 -m venv`).
+
+From the repo root:
+
+  cd CampusPilot\QandA_Agent
+  py -3.11 -m venv .venv
+  .venv\Scripts\activate
+
+Inside the venv you do NOT need to upgrade pip first. Install dependencies
+(uvicorn is listed in requirements.txt):
+
+  python -m pip install -r requirements.txt
+
+If you see: No module named uvicorn — the venv is active but packages were
+never installed (or a fresh venv). Run the line above again.
+
+Optional (only if you really want a newer pip *inside the venv*):
+
+  python -m pip install -U pip
+
+Then run (works in Git Bash / WSL / cmd; avoids "uvicorn: command not found"):
+
+  python -m uvicorn main:app --reload --port 8010
+
+This project does not require python-dotenv; .env is loaded by config.py.
+
+LLM modes (no OpenAI key required for a quick test)
+----------------------------------------------------
+- **Demo (default):** leave OPENAI_API_KEY and OLLAMA_BASE_URL empty — answers
+  use local semester JSON (fixture `fixtures/semester_2026s.json` or NAT URL).
+- **Ollama:** `ollama serve`, set OLLAMA_BASE_URL=http://localhost:11434/v1 and
+  OLLAMA_MODEL=llama3.2 (or another model with tool support).
+
+
+WinError 5 "Zugriff verweigert" on c:\python311\scripts\pip.exe
+--------------------------------------------------------------
+You tried to change the *system* pip (e.g. `pip install -U pip` without an
+activated venv). Windows often blocks that.
+
+Fix: always activate `.venv` first (prompt shows `(.venv)`), then use only
+`python -m pip ...` — never upgrade the global pip unless you run the
+terminal as Administrator (not recommended).
+
+
+WARNING: Ignoring invalid distribution ~ip (site-packages)
+------------------------------------------------------------
+Usually a broken leftover folder from an interrupted pip install, e.g.
+`~ip` or similar under:
+
+  C:\Python311\Lib\site-packages\
+
+Safe approach: ignore it and only use the venv for this project.
+
+If you want to clean it: close all Python/IDE/terminal processes, then in
+Explorer delete folders under site-packages that look like `~ip` or
+`~penai` (only obviously broken temp names). If unsure, leave them and
+use `.venv` only.

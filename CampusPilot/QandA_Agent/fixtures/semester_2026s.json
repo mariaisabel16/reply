@@ -1,0 +1,94 @@
+{
+  "semester_id_tumonline": 206,
+  "studienjahr_id_tumonline": 1621,
+  "semester_id_docgs": 33,
+  "semester_id_lmulsf": 20261,
+  "lecture_period_start": "2026-04-13",
+  "lecture_period_end": "2026-07-17",
+  "semester_key": "2026s",
+  "semester_tag": "SS 2026",
+  "semester_period_start": "2026-04-01",
+  "semester_period_end": "2026-09-30",
+  "semester_title": "Sommersemester 2026",
+  "semester_title_en": "Summer Semester 2026",
+  "is_current": true,
+  "modified": "2026-02-10T13:56:27.519195+01:00",
+  "apso_period_start": "2026-04-20",
+  "apso_period_end": "2026-10-18",
+  "grade_date": "2026-10-30T23:59:00+01:00",
+  "examperiods": {
+    "first": {
+      "semester_key": "2026s",
+      "examperiod_tag": "first",
+      "examperiod_title": "erste Prüfungsperiode nach dem SS 2026",
+      "examperiod_title_en": "first exam period after SS 2026",
+      "examperiod_start": "2026-07-13",
+      "examperiod_end": "2026-08-08",
+      "examperiod_registration_start": "2026-05-18T00:00:00+02:00",
+      "examperiod_registration_end": "2026-06-30T23:59:00+02:00",
+      "examperiod_gradedate": "2026-09-01T23:59:00+02:00",
+      "examperiod_id": 51,
+      "modified": "2025-09-01T16:44:50.078922+02:00"
+    },
+    "second": {
+      "semester_key": "2026s",
+      "examperiod_tag": "second",
+      "examperiod_title": "zweite Prüfungsperiode nach dem SS 2026",
+      "examperiod_title_en": "second exam period after SS 2026",
+      "examperiod_start": "2026-09-28",
+      "examperiod_end": "2026-10-17",
+      "examperiod_registration_start": "2026-09-07T00:00:00+02:00",
+      "examperiod_registration_end": "2026-09-21T23:59:00+02:00",
+      "examperiod_gradedate": "2026-10-30T23:59:00+01:00",
+      "examperiod_id": 52,
+      "modified": "2025-09-01T16:46:52.359014+02:00"
+    }
+  },
+  "dates": {
+    "reenroll": [
+      {
+        "semester_key": "2026s",
+        "datetype": "reenroll",
+        "semesterdate_start": null,
+        "semesterdate_end": "2025-08-15T23:59:59+02:00",
+        "semesterdate_title": "Rückmeldefrist für das SS 2026",
+        "semesterdate_title_en": "Deadline for reenrollment in SS 2026",
+        "semesterdate_url": "https://www.tum.de/studium/studienfinanzierung",
+        "semesterdate_id": 298,
+        "semesterdate": "2025-08-15T23:59:59+02:00"
+      }
+    ],
+    "holiday": [
+      {
+        "semester_key": "2026s",
+        "datetype": "holiday",
+        "semesterdate_start": "2026-04-03T00:00:00+02:00",
+        "semesterdate_end": "2026-04-03T23:59:59+02:00",
+        "semesterdate_title": "Karfreitag",
+        "semesterdate_title_en": "Good Friday",
+        "semesterdate_id": 1010,
+        "semesterdate": "2026-04-03T23:59:59+02:00"
+      },
+      {
+        "semester_key": "2026s",
+        "datetype": "holiday",
+        "semesterdate_start": "2026-04-06T00:00:00+02:00",
+        "semesterdate_end": "2026-04-06T23:59:59+02:00",
+        "semesterdate_title": "Ostermontag",
+        "semesterdate_title_en": "Easter Monday",
+        "semesterdate_id": 1011,
+        "semesterdate": "2026-04-06T23:59:59+02:00"
+      },
+      {
+        "semester_key": "2026s",
+        "datetype": "holiday",
+        "semesterdate_start": "2026-05-01T00:00:00+02:00",
+        "semesterdate_end": "2026-05-01T23:59:59+02:00",
+        "semesterdate_title": "Erster Mai",
+        "semesterdate_title_en": "May Day",
+        "semesterdate_id": 1012,
+        "semesterdate": "2026-05-01T23:59:59+02:00"
+      }
+    ]
+  }
+}
