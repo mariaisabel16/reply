@@ -13,6 +13,25 @@ export type ChatResponse = {
   debug_tools: unknown[];
 };
 
+export type AgentHealth = {
+  status: string;
+  mode?: string;
+};
+
+export async function fetchAgentHealth(): Promise<AgentHealth> {
+  const base = agentApiBase();
+  const res = await fetch(`${base}/health`, { credentials: "include" });
+  const text = await res.text();
+  if (!res.ok) {
+    throw new Error(text || `HTTP ${res.status}`);
+  }
+  try {
+    return JSON.parse(text) as AgentHealth;
+  } catch {
+    return { status: "ok" };
+  }
+}
+
 export async function sendAgentMessage(
   message: string,
   history: ChatHistoryItem[],
@@ -21,6 +40,7 @@ export async function sendAgentMessage(
   const res = await fetch(`${base}/chat`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
+    credentials: "include",
     body: JSON.stringify({ message, history }),
   });
   const text = await res.text();

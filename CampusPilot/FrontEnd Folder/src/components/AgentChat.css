@@ -36,13 +36,16 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  min-height: min(560px, calc(100dvh - 220px));
+  min-height: 280px;
+  max-height: min(720px, calc(100dvh - 200px));
 }
 
 .agent-chat-messages {
-  flex: 1;
+  flex: 1 1 auto;
+  min-height: 0;
   padding: 18px;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -79,7 +82,7 @@
 .agent-bubble-text {
   font-size: 14px;
   line-height: 1.55;
-  white-space: pre-wrap;
+  white-space: normal;
 }
 
 .agent-thinking {
@@ -127,6 +130,7 @@
 }
 
 .agent-chat-composer {
+  flex-shrink: 0;
   border-top: 1px solid var(--border);
   padding: 14px;
   background: rgba(0, 0, 0, 0.35);
@@ -201,4 +205,80 @@
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border: 0;
+}
+
+/* Eingebettet im hellen Dashboard */
+.agent-chat--embedded {
+  width: 100%;
+  max-width: none;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.agent-chat-inner--tight {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.agent-chat--embedded .agent-chat-panel {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+}
+
+.agent-chat--embedded .agent-chat-messages {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  margin-bottom: 0.65rem;
+}
+
+.agent-chat--embedded .agent-bubble {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+  color: #0f172a;
+}
+
+.agent-chat--embedded .agent-bubble-meta {
+  color: #64748b;
+}
+
+.agent-chat--embedded .agent-bubble--user {
+  background: #eff6ff;
+  border-color: #93c5fd;
+  box-shadow: none;
+}
+
+.agent-chat--embedded .agent-thinking {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
+
+.agent-chat--embedded .agent-thinking-label {
+  color: #64748b;
+}
+
+.agent-chat--embedded .agent-chat-composer {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+}
+
+.agent-chat--embedded .agent-input {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+
+.agent-chat--embedded .agent-hint {
+  color: #64748b;
 }

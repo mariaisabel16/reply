@@ -1,7 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { sendAgentMessage, type ChatHistoryItem } from "../agentApi";
 import { BRAND } from "../branding";
+import { MessageBody } from "./MessageBody";
 import "./AgentChat.css";
+
+type AgentChatProps = {
+  /** Eingebettet ins Dashboard: kein großer Titel, heller Karten-Stil */
+  embedded?: boolean;
+};
 
 type Role = "user" | "assistant";
 
@@ -15,14 +21,14 @@ function createId() {
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
-export function AgentChat() {
+export function AgentChat({ embedded = false }: AgentChatProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: createId(),
       role: "assistant",
       content:
         `Hallo — ich bin der Assistent von **${BRAND.name}**. Stell eine Frage zu Semesterdaten, z. B. **Welche Feiertage gibt es im Semester 2026s?** ` +
-          "Antworten kommen vom **QandA-Agent** (Backend unter CampusPilot/QandA_Agent). Ohne API-Key läuft ein **Demo-Modus** mit echten JSON-Daten; mit Ollama oder OpenAI siehe ENV.example dort.",
+          "Antworten kommen vom **QandA-Agent** (nach Login mit deiner TUM-/LRZ-Kennung). Ohne API-Key läuft ein **Demo-Modus** mit echten JSON-Daten; mit Ollama oder OpenAI siehe ENV.example dort.",
     },
   ]);
   const [draft, setDraft] = useState("");
@@ -77,18 +83,25 @@ export function AgentChat() {
   }
 
   return (
-    <section className="agent-chat" aria-label={`Konversation mit ${BRAND.name}`}>
-      <div className="agent-chat-inner">
-        <div className="agent-chat-head">
-          <div>
-            <h1 className="agent-chat-title">Frag den CampusPilot</h1>
-            <p className="agent-chat-lede">
-              {BRAND.name}: organisatorische Infos zur TUM — verbunden mit dem QandA-Agent (FastAPI). Demo ohne
-              OpenAI, optional Ollama oder OpenAI-Key.
-            </p>
+    <section
+      className={`agent-chat${embedded ? " agent-chat--embedded" : ""}`}
+      aria-label={`Konversation mit ${BRAND.name}`}
+    >
+      {!embedded ? (
+        <div className="agent-chat-inner">
+          <div className="agent-chat-head">
+            <div>
+              <h1 className="agent-chat-title">Frag den CampusPilot</h1>
+              <p className="agent-chat-lede">
+                {BRAND.name}: organisatorische Infos zur TUM — verbunden mit dem QandA-Agent (FastAPI). Demo ohne
+                OpenAI, optional Ollama oder OpenAI-Key.
+              </p>
+            </div>
           </div>
         </div>
+      ) : null}
 
+      <div className={embedded ? "agent-chat-inner agent-chat-inner--tight" : "agent-chat-inner"}>
         <div className="agent-chat-panel">
           <div ref={listRef} className="agent-chat-messages" role="log" aria-live="polite">
             {messages.map((m) => (
@@ -98,7 +111,9 @@ export function AgentChat() {
                 aria-label={m.role === "user" ? "Du" : "Assistent"}
               >
                 <div className="agent-bubble-meta">{m.role === "user" ? "Du" : "Agent"}</div>
-                <div className="agent-bubble-text">{m.content}</div>
+                <div className="agent-bubble-text">
+                  <MessageBody role={m.role} content={m.content} />
+                </div>
               </article>
             ))}
             {isThinking ? (

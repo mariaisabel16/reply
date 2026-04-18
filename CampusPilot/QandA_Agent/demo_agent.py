@@ -69,7 +69,7 @@ def format_semester_answer_demo(user_question: str, data: dict[str, Any]) -> str
 
     q = (user_question or "").strip()
     if q:
-        lines.append(f"\n_Deine Frage (Auszug):_ „{q[:200]}{'…' if len(q) > 200 else ''}”")
+        lines.append(f"\n*Deine Frage (Auszug):* „{q[:200]}{'…' if len(q) > 200 else ''}”")
 
     return "\n".join(lines)
 

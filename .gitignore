@@ -4,6 +4,9 @@
 !.env.example
 !.env.*.example
 
+# --- CampusPilot local auth DB ---
+CampusPilot/QandA_Agent/data/
+
 # --- Python (typical repo-wide) ---
 .venv/
 venv/

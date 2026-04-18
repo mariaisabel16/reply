@@ -1,0 +1,141 @@
+.message-plain {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.message-md {
+  font-size: 0.9375rem;
+  line-height: 1.55;
+  word-break: break-word;
+}
+
+.message-md > *:first-child {
+  margin-top: 0;
+}
+
+.message-md > *:last-child {
+  margin-bottom: 0;
+}
+
+.message-md p {
+  margin: 0 0 0.65em;
+}
+
+.message-md ul,
+.message-md ol {
+  margin: 0.35em 0 0.65em;
+  padding-left: 1.25rem;
+}
+
+.message-md li {
+  margin: 0.2em 0;
+}
+
+.message-md li > p {
+  margin: 0;
+}
+
+.message-md strong {
+  font-weight: 600;
+}
+
+.message-md em {
+  font-style: italic;
+}
+
+.message-md h2,
+.message-md h3 {
+  margin: 0.85em 0 0.4em;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+}
+
+.message-md h2:first-child,
+.message-md h3:first-child {
+  margin-top: 0;
+}
+
+.message-md h3 {
+  font-size: 0.95rem;
+}
+
+.message-md hr {
+  margin: 0.85em 0;
+  border: none;
+  border-top: 1px solid rgba(148, 163, 184, 0.55);
+}
+
+.message-md code {
+  font-family: var(--font-mono);
+  font-size: 0.84em;
+  padding: 0.12em 0.35em;
+  border-radius: 4px;
+}
+
+.message-md pre {
+  margin: 0.65em 0;
+  padding: 0.65rem 0.75rem;
+  border-radius: 8px;
+  overflow: auto;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.message-md pre code {
+  padding: 0;
+  font-size: inherit;
+  background: none;
+}
+
+.message-md-a {
+  color: #2563eb;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.message-md-a:hover {
+  color: #1d4ed8;
+}
+
+/* Dunkle Chat-Bubbles (Standalone) */
+.agent-bubble--assistant .message-md code {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.agent-bubble--assistant .message-md pre {
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.agent-bubble--assistant .message-md-a {
+  color: #93c5fd;
+}
+
+.agent-bubble--assistant .message-md-a:hover {
+  color: #bfdbfe;
+}
+
+/* Helle eingebettete Bubbles */
+.agent-chat--embedded .agent-bubble--assistant .message-md code {
+  background: #e2e8f0;
+  border: 1px solid #cbd5e1;
+  color: #0f172a;
+}
+
+.agent-chat--embedded .agent-bubble--assistant .message-md pre {
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  color: #0f172a;
+}
+
+.agent-chat--embedded .agent-bubble--assistant .message-md hr {
+  border-top-color: #cbd5e1;
+}
+
+.agent-bubble--user .message-plain {
+  white-space: pre-wrap;
+}

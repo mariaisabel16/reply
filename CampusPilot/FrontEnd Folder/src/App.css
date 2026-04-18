@@ -36,12 +36,22 @@
 }
 
 .app-logo {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  border: 1px solid var(--border-strong);
-  background: linear-gradient(145deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.02));
-  box-shadow: 0 0 0 1px rgba(0, 112, 243, 0.18) inset, 0 12px 40px rgba(0, 112, 243, 0.12);
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  border: 2px solid #0b0f18;
+  background: linear-gradient(155deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.03));
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.1) inset,
+    3px 3px 0 rgba(0, 101, 189, 0.45),
+    0 10px 28px rgba(0, 0, 0, 0.35);
+}
+
+.app-logo .brand-mark {
+  width: 30px;
+  height: 30px;
 }
 
 .app-title {
@@ -79,4 +89,11 @@
   display: flex;
   justify-content: center;
   padding: 28px 20px 32px;
+}
+
+.app-shell--dashboard {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: #e2e8f0;
 }
