@@ -1,7 +1,7 @@
 """
 TUMonline Scraper — demo.campus.tum.de
 Hackathon Reply Challenge 2025
-All output files saved to: CampusPilot/Agent/TemporaryUserInfoFiles/
+All output files saved to: CampusPilot/TemporaryUserInfoFiles/
 No screenshots generated.
 """
 
