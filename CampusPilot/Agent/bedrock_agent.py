@@ -77,7 +77,7 @@ def main():
     """
     agent = BedrockAgent()
     if agent.available:
-        test_prompt = "Hello, Bedrock!"
+        test_prompt = "Hello, Bedrock! nenn mir einen interessanten fakt"
         print(f"\nInvoking model with prompt: '{test_prompt}'")
         response = agent.invoke(test_prompt)
         if response:
