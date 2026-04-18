@@ -5,12 +5,11 @@ try:
 except ImportError:
     boto3 = None
 
-
 class BedrockAgent:
     def __init__(
         self,
-        region_name: str = "us-east-1",
-        model_id: str = "anthropic.claude-3-haiku-20240307-v1:0",
+        region_name: str = "eu-central-1",
+        model_id: str = "anthropic.claude-3-haiku-20240307-v1:0", # Changed to Haiku for better availability
         profile_name: str | None = None,
     ):
         """
@@ -43,6 +42,8 @@ class BedrockAgent:
         if not self.available or self.bedrock_client is None:
             return None
 
+        # The request body format depends on the model provider.
+        # This example is for Anthropic Claude models.
         messages = [{"role": "user", "content": prompt}]
         body_dict = {
             "anthropic_version": "bedrock-2023-05-31",
@@ -64,5 +65,25 @@ class BedrockAgent:
             response_body = json.loads(response.get("body").read())
             return response_body["content"][0]["text"]
         except Exception as exc:
-            print(f"Bedrock invocation failed: {exc}")
-            return None
+            # Return the specific exception to the caller for better error handling
+            # This is better than just printing it.
+            return f"Bedrock invocation failed: {exc}"
+
+
+def main():
+    """
+    Tests access to a  Bedrock model to verify AWS setup.
+    and test invoke method
+    """
+    agent = BedrockAgent()
+    if agent.available:
+        test_prompt = "Hello, Bedrock!"
+        print(f"\nInvoking model with prompt: '{test_prompt}'")
+        response = agent.invoke(test_prompt)
+        if response:
+            print(f"Model response: {response}")
+        else:
+            print("Failed to get a response from the model.")
+
+if __name__ == "__main__":
+    main()
