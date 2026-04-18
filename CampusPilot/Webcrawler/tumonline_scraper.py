@@ -1,6 +1,8 @@
 """
 TUMonline Scraper — demo.campus.tum.de
 Hackathon Reply Challenge 2025
+All output files saved to: CampusPilot/Agent/TemporaryUserInfoFiles/
+No screenshots generated.
 """
 
 import asyncio
@@ -9,12 +11,12 @@ import json
 import re
 import sys
 from datetime import datetime
+from pathlib import Path
 
 try:
     from playwright.async_api import async_playwright
 except ImportError:
-    print("Playwright no está instalado.")
-    print("  pip install playwright && playwright install chromium")
+    print("Playwright not installed: pip install playwright && playwright install chromium")
     sys.exit(1)
 
 try:
@@ -24,15 +26,20 @@ try:
     from rich import box
     from rich.rule import Rule
 except ImportError:
-    print("Rich no está instalado: pip install rich")
+    print("Rich not installed: pip install rich")
     sys.exit(1)
 
-# ── CAMBIO PRINCIPAL: demo en lugar de real ──
-HOME_URL        = "https://demo.campus.tum.de/DSYSTEM/ee/ui/ca2/app/desktop/#/home?$ctx=lang=DE"
-LOGIN_URL       = "https://demo.campus.tum.de/DSYSTEM/ee/ui/ca2/app/desktop/#/login"
-CURRICULUM_URL  = "https://demo.campus.tum.de/DSYSTEM/ee/ui/ca2/app/desktop/#/slc.cm.cs/student/myStudies/1089084/myCurriculumElements/2917690?$ctx=design=ca;lang=DE&$filter=active-eq=true;currentlyValid-eq=true;partOfCurriculum-eq=true"
+# ── URLs ──────────────────────────────────────
+HOME_URL         = "https://demo.campus.tum.de/DSYSTEM/ee/ui/ca2/app/desktop/#/home?$ctx=lang=DE"
+LOGIN_URL        = "https://demo.campus.tum.de/DSYSTEM/ee/ui/ca2/app/desktop/#/login"
+CURRICULUM_URL   = "https://demo.campus.tum.de/DSYSTEM/ee/ui/ca2/app/desktop/#/slc.cm.cs/student/myStudies/1089084/myCurriculumElements/2917690?$ctx=design=ca;lang=DE&$filter=active-eq=true;currentlyValid-eq=true;partOfCurriculum-eq=true"
 STUDENT_CARD_URL = "https://demo.campus.tum.de/DSYSTEM/wbstudkart.wbstudent"
-TIMEOUT = 20000
+TIMEOUT          = 20000
+
+# ── Output directory — session folders are created here each run ──
+OUTPUT_DIR = Path(__file__).resolve().parent.parent / "Agent" / "TemporaryUserInfoFiles"
+OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+SESSION_DIR: Path = OUTPUT_DIR  # overridden at runtime
 
 console = Console()
 
@@ -40,8 +47,9 @@ console = Console()
 def print_header():
     console.print(Panel.fit(
         "[bold green]TUMonline Scraper[/bold green]\n"
-        "[dim]Login automático + Curriculum + Studierendenkartei[/dim]\n"
-        "[yellow]Entorno: demo.campus.tum.de[/yellow]",
+        "[dim]Auto login + Curriculum + Studierendenkartei[/dim]\n"
+        "[yellow]Environment: demo.campus.tum.de[/yellow]\n"
+        f"[dim]Output: {OUTPUT_DIR}[/dim]",
         border_style="green"
     ))
 
@@ -235,7 +243,10 @@ async def extract_status_widgets(page):
         body_text_norm, re.IGNORECASE | re.DOTALL,
     )
     if ects_match:
-        result["ects"] = {"ects_current": ects_match.group(1).replace(",", "."), "ects_total": ects_match.group(2).replace(",", ".")}
+        result["ects"] = {
+            "ects_current": ects_match.group(1).replace(",", "."),
+            "ects_total": ects_match.group(2).replace(",", "."),
+        }
     avg_match = re.search(
         r"Vorläufige\s+Durchschnittsnote\s*(\d+(?:[.,]\d+)?)",
         body_text_norm, re.IGNORECASE | re.DOTALL,
@@ -253,9 +264,12 @@ async def extract_module_tiles(page):
     for m in re.finditer(pattern, text, re.IGNORECASE | re.DOTALL):
         module_name = clean_text(m.group(1))
         if module_name:
-            modules.append({"module_name": module_name, "status": "POSITIV",
-                            "credits_current": m.group(2).replace(",", "."),
-                            "credits_total": m.group(3).replace(",", ".")})
+            modules.append({
+                "module_name":    module_name,
+                "status":         "POSITIV",
+                "credits_current": m.group(2).replace(",", "."),
+                "credits_total":   m.group(3).replace(",", "."),
+            })
     deduped, seen = [], set()
     for mod in modules:
         key = (mod["module_name"], mod["credits_current"], mod["credits_total"])
@@ -274,18 +288,18 @@ async def scrape_curriculum_page(page):
     widgets = await extract_status_widgets(page)
     modules = await extract_module_tiles(page)
     return {
-        "url":          page.url,
-        "name":         extract_name(text),
-        "semester":     extract_semester(text),
+        "url":            page.url,
+        "name":           extract_name(text),
+        "semester":       extract_semester(text),
         "matrikelnummer": extract_matrikelnummer(text),
-        "ects":         widgets.get("ects") or extract_ects(normalized_text),
-        "average":      widgets.get("average") or extract_average(normalized_text),
-        "study_status": extract_study_status(normalized_text),
-        "modules":      modules,
-        "text_preview": text[:5000],
-        "cards":        cards,
-        "tables":       tables,
-        "links":        links,
+        "ects":           widgets.get("ects") or extract_ects(normalized_text),
+        "average":        widgets.get("average") or extract_average(normalized_text),
+        "study_status":   extract_study_status(normalized_text),
+        "modules":        modules,
+        "text_preview":   text[:5000],
+        "cards":          cards,
+        "tables":         tables,
+        "links":          links,
     }
 
 
@@ -324,7 +338,7 @@ async def fill_first_visible(page, selectors, value, timeout=8000):
 
 
 async def automated_login(page, username: str, password: str):
-    console.print("[cyan]→[/cyan] Öffne TUMonline Demo Login-Seite...")
+    console.print("[cyan]→[/cyan] Opening TUMonline demo login page...")
     await page.goto(LOGIN_URL, wait_until="domcontentloaded", timeout=TIMEOUT)
     await page.wait_for_timeout(2000)
 
@@ -334,22 +348,21 @@ async def automated_login(page, username: str, password: str):
         timeout=10000,
     )
     if not clicked:
-        await page.screenshot(path="debug_login_first_page.png", full_page=True)
-        raise RuntimeError("Konnte den 'TUM Login'-Button nicht finden.")
-    console.print(f"[green]✓[/green] TUM Login geklickt: {selector}")
+        raise RuntimeError("Could not find the TUM Login button.")
+    console.print(f"[green]✓[/green] TUM Login clicked")
 
     await page.wait_for_load_state("domcontentloaded", timeout=TIMEOUT)
     await page.wait_for_timeout(2500)
 
-    user_ok, user_sel = await fill_first_visible(
+    user_ok, _ = await fill_first_visible(
         page,
         ['input[name="j_username"]', 'input[name="username"]', 'input[id="username"]',
          'input[placeholder*="@tum"]', 'input[type="text"]'],
         username, timeout=12000,
     )
     if not user_ok:
-        raise RuntimeError("Username-Feld nicht gefunden.")
-    console.print(f"[green]✓[/green] Username eingetragen")
+        raise RuntimeError("Username field not found.")
+    console.print("[green]✓[/green] Username entered")
 
     pass_ok, _ = await fill_first_visible(
         page,
@@ -357,8 +370,8 @@ async def automated_login(page, username: str, password: str):
         password, timeout=12000,
     )
     if not pass_ok:
-        raise RuntimeError("Passwort-Feld nicht gefunden.")
-    console.print(f"[green]✓[/green] Passwort eingetragen")
+        raise RuntimeError("Password field not found.")
+    console.print("[green]✓[/green] Password entered")
 
     submit_ok, _ = await click_first_visible(
         page,
@@ -366,7 +379,7 @@ async def automated_login(page, username: str, password: str):
         timeout=10000,
     )
     if not submit_ok:
-        raise RuntimeError("LOGIN-Button nicht gefunden.")
+        raise RuntimeError("LOGIN button not found.")
 
     try:
         await page.wait_for_load_state("networkidle", timeout=TIMEOUT)
@@ -374,7 +387,7 @@ async def automated_login(page, username: str, password: str):
         pass
     await page.wait_for_timeout(4000)
 
-    # Manejar página de hooks si aparece
+    # Handle hooks/welcome page if it appears
     if "wbEeHooks" in page.url or "Hooks" in page.url:
         try:
             await page.locator('a:has-text("Weiter"), button:has-text("Weiter")').first.click()
@@ -384,8 +397,8 @@ async def automated_login(page, username: str, password: str):
 
     current_url = page.url.lower()
     if any(x in current_url for x in ["login", "shibboleth", "idp"]):
-        raise RuntimeError("Login nicht abgeschlossen.")
-    console.print("[green]✓[/green] Login erfolgreich!")
+        raise RuntimeError("Login did not complete successfully.")
+    console.print("[green]✓[/green] Login successful!")
 
 
 async def extract_student_card_data(page):
@@ -441,21 +454,41 @@ async def extract_student_card_data(page):
     return result
 
 
+def save_json(filename: str, data: dict):
+    path = SESSION_DIR / filename
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+    console.print(f"[green]✓[/green] Saved: {path}")
+
+
+def save_text(filename: str, text: str):
+    path = SESSION_DIR / filename
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(text)
+    console.print(f"[green]✓[/green] Saved: {path}")
+
+
 async def main():
+    global SESSION_DIR
     print_header()
 
-    username = console.input("[bold]TUM-Kennung[/bold]: ").strip()
-    password = getpass.getpass("Passwort: ")
+    username = console.input("[bold]TUM username:[/bold] ").strip()
+    password = getpass.getpass("Password: ")
+
+    session_ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    SESSION_DIR = OUTPUT_DIR / f"session_{session_ts}"
+    SESSION_DIR.mkdir(parents=True, exist_ok=True)
+    console.print(f"[dim]Session folder: {SESSION_DIR}[/dim]")
 
     result = {
-        "scraped_at": datetime.now().isoformat(),
-        "environment": "demo.campus.tum.de",
-        "curriculum_data": {},
+        "scraped_at":   datetime.now().isoformat(),
+        "environment":  "demo.campus.tum.de",
+        "curriculum_data":   {},
         "student_card_data": {},
     }
 
     async with async_playwright() as pw:
-        console.print("[cyan]→[/cyan] Starte Browser...")
+        console.print("[cyan]→[/cyan] Starting browser...")
         browser = await pw.chromium.launch(
             headless=False, slow_mo=100,
             args=["--disable-features=AutofillServerCommunication,PasswordManagerEnabled",
@@ -470,45 +503,52 @@ async def main():
         try:
             await automated_login(page, username, password)
         except Exception as e:
-            console.print(f"[red]✗ Login Fehler: {e}[/red]")
+            console.print(f"[red]✗ Login error: {e}[/red]")
             await browser.close()
             return
 
-        console.print("[cyan]→[/cyan] Öffne Curriculum-Seite...")
+        # ── Curriculum ────────────────────────────
+        console.print("[cyan]→[/cyan] Opening curriculum page...")
         await page.goto(CURRICULUM_URL, wait_until="domcontentloaded", timeout=TIMEOUT)
         await page.wait_for_timeout(5000)
 
-        await page.screenshot(path="tum_curriculum.png", full_page=True)
-        console.print("[green]✓[/green] Screenshot: tum_curriculum.png")
+        await page.screenshot(path=str(SESSION_DIR / "tum_curriculum.png"), full_page=True)
+        console.print("[green]✓[/green] Screenshot saved: tum_curriculum.png")
 
         curriculum_body_text = await get_body_text(page)
-        with open("tum_curriculum_body.txt", "w", encoding="utf-8") as f:
-            f.write(curriculum_body_text)
+        save_text("curriculum_body.txt", curriculum_body_text)
 
         result["curriculum_data"] = await scrape_curriculum_page(page)
-        console.print("[green]✓[/green] Curriculum-Daten extrahiert.")
+        console.print("[green]✓[/green] Curriculum data extracted.")
 
-        console.print("[cyan]→[/cyan] Öffne Studierendenkartei...")
+        # ── Student card ──────────────────────────
+        console.print("[cyan]→[/cyan] Opening Studierendenkartei...")
         await page.goto(STUDENT_CARD_URL, wait_until="domcontentloaded", timeout=TIMEOUT)
         await page.wait_for_timeout(5000)
 
-        await page.screenshot(path="studierendenkartei.png", full_page=True)
-        console.print("[green]✓[/green] Screenshot: studierendenkartei.png")
-
         student_card_body_text = await get_body_text(page)
-        with open("studierendenkartei_body.txt", "w", encoding="utf-8") as f:
-            f.write(student_card_body_text)
+
+        await page.screenshot(path=str(SESSION_DIR / "studierendenkartei.png"), full_page=True)
+        console.print("[green]✓[/green] Screenshot saved: studierendenkartei.png")
+        save_text("student_card_body.txt", student_card_body_text)
 
         result["student_card_data"] = await extract_student_card_data(page)
-        console.print("[green]✓[/green] Studierendenkartei-Daten extrahiert.")
+        console.print("[green]✓[/green] Student card data extracted.")
 
-        with open("tum_curriculum_data.json", "w", encoding="utf-8") as f:
-            json.dump(result, f, ensure_ascii=False, indent=2)
-        console.print("[green]✓[/green] Daten gespeichert: tum_curriculum_data.json")
+        # ── Save all JSON files ───────────────────
+        save_json("scrapped_data.json", result)
+        save_json("user.json", result["student_card_data"])
+        save_json("modules.json", {"modules": result["curriculum_data"].get("modules", [])})
+        save_json("study_plan.json", {
+            "semester":  result["curriculum_data"].get("semester"),
+            "ects":      result["curriculum_data"].get("ects"),
+            "average":   result["curriculum_data"].get("average"),
+            "status":    result["curriculum_data"].get("study_status"),
+        })
 
-        # Render summary
+        # ── Summary ───────────────────────────────
         console.print()
-        console.print(Rule("[bold green]TUMonline Demo Übersicht[/bold green]"))
+        console.print(Rule("[bold green]TUMonline Demo Summary[/bold green]"))
         cd = result["curriculum_data"]
         sd = result["student_card_data"]
         console.print(Panel(
@@ -516,29 +556,34 @@ async def main():
             f"[bold]Matrikelnummer:[/bold] {sd.get('matrikelnummer') or 'N/A'}\n"
             f"[bold]Semester:[/bold] {cd.get('semester') or 'N/A'}\n"
             f"[bold]ECTS:[/bold] {(cd.get('ects') or {}).get('ects_current','?')} / {(cd.get('ects') or {}).get('ects_total','?')}\n"
-            f"[bold]Durchschnittsnote:[/bold] {cd.get('average') or 'N/A'}",
-            title="Zusammenfassung", border_style="cyan"
+            f"[bold]Grade avg:[/bold] {cd.get('average') or 'N/A'}",
+            title="Summary", border_style="cyan"
         ))
 
         modules = cd.get("modules") or []
         if modules:
-            t = Table(title="Module", box=box.ROUNDED, border_style="green", show_lines=True)
-            t.add_column("Modul", style="white", overflow="fold")
+            t = Table(title="Modules", box=box.ROUNDED, border_style="green", show_lines=True)
+            t.add_column("Module", style="white", overflow="fold")
             t.add_column("Status", style="green")
             t.add_column("Credits", style="cyan")
             for mod in modules:
-                t.add_row(mod.get("module_name",""), mod.get("status",""), f"{mod.get('credits_current','?')}/{mod.get('credits_total','?')}")
+                t.add_row(
+                    mod.get("module_name", ""),
+                    mod.get("status", ""),
+                    f"{mod.get('credits_current','?')}/{mod.get('credits_total','?')}"
+                )
             console.print(t)
 
         console.print()
-        console.print("[dim]Browser bleibt offen. Mit Ctrl+C beenden.[/dim]")
+        console.print(f"[bold]All files saved to:[/bold] {OUTPUT_DIR}")
+        console.print("[dim]Browser stays open. Press Ctrl+C to close.[/dim]")
         try:
             await asyncio.Future()
         except KeyboardInterrupt:
             pass
 
         await browser.close()
-        console.print("[green]✓[/green] Browser geschlossen.")
+        console.print("[green]✓[/green] Browser closed.")
 
 
 if __name__ == "__main__":
