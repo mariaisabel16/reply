@@ -14,8 +14,8 @@ SCORING_WEIGHTS = {
     "material_availability": 0.10,
 }
 
-CURRENT_DATE = date(2026, 4, 18)
-DEFAULT_RECOMMENDATION_LIMIT = 4
+CURRENT_DATE = date(2026, 4, 18) #automatically set to current date in production
+DEFAULT_RECOMMENDATION_LIMIT = 4# max num of modules to recommend
 
 
 def save_to_vector_db(user_id: str, extracted_data: dict[str, Any]) -> bool:
@@ -28,16 +28,24 @@ def save_to_vector_db(user_id: str, extracted_data: dict[str, Any]) -> bool:
     print("--------------------------------")
     return True
 
-
+#opens and loads a json file from the given path and returns the data as a Python object (dict or list)
 def load_json_file(path: str) -> Any:
     with open(path, "r", encoding="utf-8") as handle:
         return json.load(handle)
 
-
+#to compare and match text data in a more flexible way, this function normalizes 
+# the input by converting it to lowercase, removing non-alphanumeric
+#  characters, and trimming whitespace. This helps to ensure that
+#  comparisons are not affected by differences in formatting or
+#  case sensitivity.
 def normalize_text(value: Any) -> str:
     return re.sub(r"[^a-z0-9]+", " ", str(value).lower()).strip()
 
-
+#extracts keywords from various types of input data (strings, lists,
+#  dictionaries) by normalizing the text and splitting it into tokens.
+#  It returns a set of keywords that can be used for matching
+#  user interests, module descriptions, and other relevant information
+#  in the recommendation process.
 def extract_keywords(value: Any) -> set[str]:
     if value is None:
         return set()
@@ -55,18 +63,24 @@ def extract_keywords(value: Any) -> set[str]:
         return tokens
     return extract_keywords(str(value))
 
-
+# calculates the overlap ratio between two sets of keywords,
+#  which is used to
 def overlap_ratio(left: set[str], right: set[str]) -> float:
     if not left or not right:
         return 0.0
     return round(len(left & right) / len(left), 3)
 
-
+#compares two time slots to determine if they overlap.
+#  It first checks if the slots are on the same day, and if so,
+#  it compares the start and end times to see if there is any overlap.
+#  This is important for identifying scheduling conflicts between module schedules
+#  and user-blocked time slots.
 def parse_time(value: str) -> int:
     hour, minute = value.split(":")
     return int(hour) * 60 + int(minute)
 
-
+# determines if two time slots overlap by comparing their days
+#  and times.
 def slots_overlap(left: dict[str, str], right: dict[str, str]) -> bool:
     if left.get("day") != right.get("day"):
         return False
@@ -74,7 +88,8 @@ def slots_overlap(left: dict[str, str], right: dict[str, str]) -> bool:
         right["start"]
     ) < parse_time(left["end"])
 
-
+# checks for scheduling conflicts between a module's schedule
+#  and a list of user-blocked time slots.
 def module_conflicts_with_slots(
     module_schedule: list[dict[str, str]],
     blocked_slots: list[dict[str, str]],
@@ -95,6 +110,8 @@ def module_conflicts_with_slots(
                 )
     return conflicts
 
+# compares the schedules of two modules to determine if there 
+# are any overlapping time slots,
 
 def modules_conflict(left_module: dict[str, Any], right_module: dict[str, Any]) -> bool:
     for left_slot in left_module.get("schedule", []):
@@ -103,6 +120,7 @@ def modules_conflict(left_module: dict[str, Any], right_module: dict[str, Any]) 
                 return True
     return False
 
+# extracts the set of completed module IDs from the user's study history,
 
 def completed_module_ids(user_profile: dict[str, Any]) -> set[str]:
     completed = set()
@@ -111,7 +129,11 @@ def completed_module_ids(user_profile: dict[str, Any]) -> set[str]:
             completed.add(item["module_id"])
     return completed
 
-
+# builds a structured study profile from raw user data,
+#  ensuring that all necessary fields are populated and 
+# normalized for use in the recommendation process.
+#  It handles various input formats and provides default
+#  values where needed to create a consistent profile structure.
 def build_study_profile(raw_user_data: dict[str, Any], user_id: str | None = None) -> dict[str, Any]:
     name = raw_user_data.get("name")
     if not name:
@@ -142,7 +164,8 @@ def build_study_profile(raw_user_data: dict[str, Any], user_id: str | None = Non
     profile["completed_module_ids"] = sorted(completed_module_ids(profile))
     return profile
 
-
+# processes raw user data, builds a structured study profile,
+#  and simulates storing it in a vector database.
 def process_and_store_user_info(
     user_data_json_string: str,
     user_id: str = "user_123",
@@ -160,7 +183,8 @@ def process_and_store_user_info(
         print(f"Profile extraction failed: {exc}")
         return None
 
-
+# determines the user's intent based on their query and profile 
+# information.
 def determine_intent(agent: BedrockAgent, user_profile: dict[str, Any], user_query: str) -> dict[str, Any]:
     """
     Uses a simple deterministic intent for the hackathon MVP and only enriches with LLM later.
@@ -174,16 +198,17 @@ def determine_intent(agent: BedrockAgent, user_profile: dict[str, Any], user_que
         },
     }
 
-
+# checks if a module is offered in the current term by comparing
+#  the module's semester information
 def module_is_offered(module: dict[str, Any], current_term: str) -> bool:
     return normalize_text(module.get("semester", "")) == normalize_text(current_term)
 
-
+# verifies that the user has completed all prerequisite modules required
 def prerequisites_met(module: dict[str, Any], user_profile: dict[str, Any]) -> bool:
     completed = set(user_profile.get("completed_module_ids", []))
     return all(prerequisite in completed for prerequisite in module.get("prerequisites", []))
 
-
+# calculates how well a module matches the user's interests by comparing
 def calculate_interest_fit(module: dict[str, Any], user_profile: dict[str, Any]) -> float:
     interest_keywords = extract_keywords(user_profile.get("interests", []))
     module_keywords = extract_keywords(module.get("tags", [])) | extract_keywords(
@@ -191,7 +216,7 @@ def calculate_interest_fit(module: dict[str, Any], user_profile: dict[str, Any])
     )
     return overlap_ratio(interest_keywords, module_keywords)
 
-
+# calculates how well a module aligns with the user's master goal by comparing
 def calculate_master_fit(module: dict[str, Any], user_profile: dict[str, Any]) -> float:
     master_goal_keywords = extract_keywords(user_profile.get("master_goal", ""))
     module_goal_keywords = extract_keywords(module.get("master_tracks", [])) | extract_keywords(
@@ -199,14 +224,14 @@ def calculate_master_fit(module: dict[str, Any], user_profile: dict[str, Any]) -
     )
     return overlap_ratio(master_goal_keywords, module_goal_keywords)
 
-
+# calculates how well the module's ECTS value fits the user's desired workload,
 def calculate_ects_fit(module: dict[str, Any], user_profile: dict[str, Any]) -> float:
     desired_ects = max(int(user_profile.get("desired_ects", 18)), 1)
     ideal_module_size = max(desired_ects / 3, 5)
     distance = abs(module.get("ects", 0) - ideal_module_size)
     return round(max(0.0, 1 - (distance / ideal_module_size)), 3)
 
-
+#   calculates a conflict-free score for a module based on the user's blocked time slots.
 def calculate_conflict_free(module: dict[str, Any], user_profile: dict[str, Any]) -> tuple[float, list[dict[str, Any]]]:
     blocked_slots = user_profile.get("blocked_slots", [])
     conflicts = module_conflicts_with_slots(module.get("schedule", []), blocked_slots)
