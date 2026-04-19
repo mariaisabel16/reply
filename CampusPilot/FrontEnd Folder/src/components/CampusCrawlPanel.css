@@ -421,6 +421,19 @@
   min-width: 5rem;
 }
 
+.crawl-stats-item--wide {
+  flex: 1 1 100%;
+  min-width: min(100%, 18rem);
+}
+
+.crawl-stats-value--wrap {
+  font-weight: 600;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  white-space: normal;
+  word-break: break-word;
+}
+
 .crawl-stats-item--passed {
   background: var(--crawl-success-bg);
   border-color: #bbf7d0;

@@ -20,6 +20,18 @@ zu solchen Regelwerken die KB durchsuchen; Snippets aus `snippets_markdown` ausw
 abgleichen, wo beides relevant ist. Wenn die KB leer fehlschlägt oder nichts liefert, nichts erfinden.
 Bei **vollständigen Modullisten** oder „alle Pflichtmodule“: Tool mit hohem `k` (20–25) aufrufen und
 bei Bedarf mit zweitem Suchbegriff wiederholen (z. B. „kanonische CSV“, Studiengangsname).
+
+**Persönliche TUMonline-Daten im Systemkontext:** Wenn der angehängte JSON-Block `tumonline_grade_records`
+und/oder `curriculum_module_tiles` enthält, sind das **deine vom Server gecrawlten Leistungen/Kacheln**
+(Stand `scraped_at`). Nutze sie für Fragen wie „welche Module habe ich schon“ oder als eine Seite des
+Abgleichs bei „was fehlt noch“. Für **Pflichtmodule / Studienplan** immer zusätzlich `search_curriculum_kb`
+(Stichworte: Studiengang, SPO, „Pflicht“, Modulcode) — Snippets auswerten und **explizit** mit den
+Einträgen in `tumonline_grade_records` (Titel, `module_id`) abgleichen; nichts als erledigt behaupten,
+was nicht in diesen Daten oder der KB belegt ist. Wenn `truncated: true`, den Nutzer darauf hinweisen,
+dass die eingebettete Liste gekürzt sein kann.
+Wenn im Kontext **`studiengang`** (Top-Level oder unter `student_card` / `curriculum_page`) gesetzt ist,
+diesen Namen **direkt als Studiengang** nennen — nicht schreiben, der Studiengang sei nicht identifizierbar,
+und nicht nur aus Modulpräfixen (z. B. IN…) schließen, wenn `studiengang` bereits vorliegt.
 NAT-Tools (jeweils GET): `nat_get_semesters`, `nat_get_semesters_list`, `nat_get_semesters_extended`,
 `nat_get_semesters_schedule`, `nat_get_semesters_examperiods`, `nat_get_semesters_dates`, `get_semester_by_key`.
 Wähle das kleinste passende Tool (z. B. `nat_get_semesters_dates` mit `semester_key` statt immer `extended`).
@@ -78,12 +90,14 @@ Formatierung (einheitlich für die Chat-Oberfläche):
 
 
 def full_system_prompt(study_context_markdown: str | None) -> str:
-    """Basis-Systemprompt plus optionaler TUMonline-Crawl-Kontext (kein Passwort, keine Roh-HTML-Tabellen)."""
+    """Basis-Systemprompt plus optionaler TUMonline-Crawl (Stammdaten, Notenliste, Curriculum-Kacheln)."""
     if not (study_context_markdown and study_context_markdown.strip()):
         return SYSTEM_PROMPT
     return (
         SYSTEM_PROMPT
         + "\n\nEs folgt ein **optionaler Nutzerkontext** aus TUMonline (serverseitiger Post-Login-Crawl). "
+        "Enthält u. a. `studiengang` (offizielle Bezeichnung, falls Crawl sie liefert), "
+        "`tumonline_grade_records` (Meine Leistungen) und optional `curriculum_module_tiles`. "
         "Nur verwenden, wenn er zur Frage passt; nichts daraus erfinden oder extrapolieren. "
         "Angaben können veraltet sein (Feld `scraped_at`). "
         "**Matrikelnummer** und ähnliche Identifikatoren nicht proaktiv in Nutzerantworten nennen, "

@@ -219,12 +219,136 @@ def _compact_label_table(d: Any, *, max_pairs: int, max_val_len: int) -> dict[st
     return out
 
 
+def _prompt_max_grade_rows() -> int:
+    raw = os.environ.get("CAMPUSPILOT_PROMPT_MAX_GRADE_ROWS", "180").strip()
+    try:
+        n = int(raw)
+    except ValueError:
+        return 180
+    return max(20, min(n, 400))
+
+
+def _prompt_max_curriculum_tiles() -> int:
+    raw = os.environ.get("CAMPUSPILOT_PROMPT_MAX_CURRICULUM_TILES", "80").strip()
+    try:
+        n = int(raw)
+    except ValueError:
+        return 80
+    return max(10, min(n, 200))
+
+
+def _prompt_context_max_chars() -> int:
+    raw = os.environ.get("CAMPUSPILOT_STUDY_CONTEXT_MAX_CHARS", "92000").strip()
+    try:
+        n = int(raw)
+    except ValueError:
+        return 92000
+    return max(20_000, min(n, 200_000))
+
+
+def _compact_grade_row(m: dict[str, Any]) -> dict[str, Any]:
+    out: dict[str, Any] = {}
+    for k in (
+        "module_id",
+        "title",
+        "grade",
+        "credits",
+        "date",
+        "department",
+        "passed",
+        "in_progress",
+        "final",
+        "status",
+        "type",
+    ):
+        if k not in m or m[k] is None:
+            continue
+        v = m[k]
+        if isinstance(v, str):
+            v = _truncate_str(v, 160 if k in ("title", "status", "department") else 100)
+        out[k] = v
+    return out
+
+
+def _compact_curriculum_tile_row(m: dict[str, Any]) -> dict[str, Any]:
+    out: dict[str, Any] = {}
+    if m.get("module_name") is not None:
+        out["module_name"] = _truncate_str(str(m["module_name"]), 160)
+    if m.get("status") is not None:
+        out["status"] = _truncate_str(str(m["status"]), 100)
+    for k in ("credits_current", "credits_total", "is_required", "raw_credits_text"):
+        if k in m and m[k] is not None:
+            out[k] = m[k]
+    return out
+
+
+def _attach_module_lists_for_prompt(profile: dict[str, Any], md: Any, cd: Any) -> None:
+    """Fügt Leistungs-/Curriculum-Modullisten hinzu (für Abgleich mit Studienplan-KB)."""
+    if isinstance(md, dict):
+        items = md.get("items")
+        if isinstance(items, list) and items:
+            cap = _prompt_max_grade_rows()
+            rows = [_compact_grade_row(x) for x in items[:cap] if isinstance(x, dict)]
+            profile["tumonline_grade_records"] = {
+                "source": "Meine Leistungen / Noten (TUMonline)",
+                "count_in_crawl": len(items),
+                "count_included": len(rows),
+                "truncated": len(items) > len(rows),
+                "records": rows,
+            }
+        summ: dict[str, Any] = {}
+        for key in ("total", "passed", "in_progress", "total_ects"):
+            if key in md and md[key] is not None:
+                summ[key] = md[key]
+        if summ:
+            profile["grades_summary"] = summ
+
+    if isinstance(cd, dict):
+        mods = cd.get("modules")
+        if isinstance(mods, list) and mods:
+            cap = _prompt_max_curriculum_tiles()
+            rows = [_compact_curriculum_tile_row(x) for x in mods[:cap] if isinstance(x, dict)]
+            profile["curriculum_module_tiles"] = {
+                "source": "Curriculum-Kacheln (TUMonline)",
+                "count_in_crawl": len(mods),
+                "count_included": len(rows),
+                "truncated": len(mods) > len(rows),
+                "records": rows,
+            }
+
+
+def _shrink_prompt_modules(profile: dict[str, Any]) -> None:
+    """Reduziert Modulzeilen, bis JSON unter CAMPUSPILOT_STUDY_CONTEXT_MAX_CHARS passt."""
+    max_chars = _prompt_context_max_chars()
+    for _ in range(12):
+        try:
+            blob = json.dumps(profile, ensure_ascii=False, indent=2)
+        except (TypeError, ValueError):
+            return
+        if len(blob) <= max_chars:
+            return
+        gr = profile.get("tumonline_grade_records")
+        if isinstance(gr, dict) and isinstance(gr.get("records"), list) and gr["records"]:
+            gr["records"] = gr["records"][: max(5, len(gr["records"]) * 2 // 3)]
+            gr["count_included"] = len(gr["records"])
+            gr["truncated"] = True
+            continue
+        ct = profile.get("curriculum_module_tiles")
+        if isinstance(ct, dict) and isinstance(ct.get("records"), list) and ct["records"]:
+            ct["records"] = ct["records"][: max(5, len(ct["records"]) * 2 // 3)]
+            ct["count_included"] = len(ct["records"])
+            ct["truncated"] = True
+            continue
+        break
+
+
 def compact_study_profile_for_prompt(user_id: int) -> str | None:
     """
-    Kurzprofil aus dem letzten erfolgreichen TUMonline-Crawl (SQLite), für den LLM-Systemprompt.
+    Kontext aus dem letzten erfolgreichen TUMonline-Crawl für den LLM-Systemprompt (SQLite).
 
-    Keine Passwörter, keine Modullisten — nur Stammdaten/Studienkontext. Gibt None zurück,
-    wenn noch kein Crawl oder Fehlerstatus.
+    Enthält Stammdaten **und** Modullisten (Noten/„Meine Leistungen“ sowie Curriculum-Kacheln), damit
+    der Agent z. B. erledigte vs. offene Pflichtmodule mit ``search_curriculum_kb`` abgleichen kann.
+    Keine Passwörter. Gibt None zurück, wenn noch kein Crawl oder Fehlerstatus.
     """
     raw = get_stored_crawl_payload(user_id)
     if not raw:
@@ -245,6 +369,7 @@ def compact_study_profile_for_prompt(user_id: int) -> str | None:
             "full_name",
             "vorname",
             "nachname",
+            "studiengang",
             "fachsemester",
             "studien_id",
             "spo_version",
@@ -253,10 +378,10 @@ def compact_study_profile_for_prompt(user_id: int) -> str | None:
             if val is None or val == "":
                 continue
             stu[key] = val
-        bi = _compact_label_table(sc.get("basisinformationen"), max_pairs=14, max_val_len=220)
+        bi = _compact_label_table(sc.get("basisinformationen"), max_pairs=18, max_val_len=240)
         if bi:
             stu["basisinformationen"] = bi
-        wi = _compact_label_table(sc.get("weitere_informationen"), max_pairs=8, max_val_len=220)
+        wi = _compact_label_table(sc.get("weitere_informationen"), max_pairs=12, max_val_len=240)
         if wi:
             stu["weitere_informationen"] = wi
         if stu:
@@ -264,7 +389,7 @@ def compact_study_profile_for_prompt(user_id: int) -> str | None:
 
     if isinstance(cd, dict):
         cur: dict[str, Any] = {}
-        for key in ("name", "matrikelnummer", "average", "semester", "study_status"):
+        for key in ("name", "matrikelnummer", "average", "semester", "study_status", "studiengang", "url"):
             val = cd.get(key)
             if val is None or val == "":
                 continue
@@ -278,15 +403,41 @@ def compact_study_profile_for_prompt(user_id: int) -> str | None:
         if cur:
             profile["curriculum_page"] = cur
 
-    if isinstance(md, dict):
-        summ: dict[str, Any] = {}
-        for key in ("total", "passed", "in_progress", "total_ects"):
-            if key in md and md[key] is not None:
-                summ[key] = md[key]
-        if summ:
-            profile["grades_summary"] = summ
+    _attach_module_lists_for_prompt(profile, md, cd)
+    _shrink_prompt_modules(profile)
 
-    if not any(k in profile for k in ("student_card", "curriculum_page", "grades_summary")):
+    merged_studiengang: str | None = None
+    if isinstance(sc, dict):
+        v = sc.get("studiengang")
+        if isinstance(v, str) and v.strip():
+            merged_studiengang = v.strip()
+    if not merged_studiengang and isinstance(cd, dict):
+        v = cd.get("studiengang")
+        if isinstance(v, str) and v.strip():
+            merged_studiengang = v.strip()
+    if not merged_studiengang:
+        v = raw.get("studiengang")
+        if isinstance(v, str) and v.strip():
+            merged_studiengang = v.strip()
+    if merged_studiengang:
+        profile["studiengang"] = merged_studiengang
+        st = profile.get("student_card")
+        if isinstance(st, dict) and not (
+            isinstance(st.get("studiengang"), str) and str(st["studiengang"]).strip()
+        ):
+            st["studiengang"] = merged_studiengang
+
+    _meaningful = frozenset(
+        (
+            "student_card",
+            "curriculum_page",
+            "grades_summary",
+            "tumonline_grade_records",
+            "curriculum_module_tiles",
+            "studiengang",
+        )
+    )
+    if not any(k in profile for k in _meaningful):
         return None
     try:
         blob = json.dumps(profile, ensure_ascii=False, indent=2)
@@ -294,8 +445,13 @@ def compact_study_profile_for_prompt(user_id: int) -> str | None:
         return None
     return (
         "## TUMonline-Studierendenkontext (serverseitig nach Login gecrawlt)\n"
-        "Die folgenden Felder stammen aus TUMonline (Demo-Campus), Stand siehe `scraped_at`. "
-        "Nur nutzen, wenn sie zur Nutzerfrage passen; nichts erfinden oder extrapolieren.\n\n"
+        "Die folgenden Daten stammen aus TUMonline, Stand `scraped_at`. **Pflicht:** Für „was fehlt mir noch“ "
+        "immer `tumonline_grade_records` / `curriculum_module_tiles` mit der **Studienplan-Vektordatenbank** "
+        "(`search_curriculum_kb`, Studiengang/SPO aus Kontext oder Nutzerfrage) abgleichen — nichts erfinden.\n"
+        "Wenn das JSON-Feld **`studiengang`** (oder `student_card.studiengang` / `curriculum_page.studiengang`) "
+        "gesetzt ist, ist das die **erkannte offizielle Studiengangsbezeichnung** aus TUMonline — nicht behaupten, "
+        "der Studiengang sei unbekannt, und nicht nur aus Modulcodes raten.\n"
+        "Matrikelnummer nur nennen, wenn der Nutzer danach fragt.\n\n"
         f"```json\n{blob}\n```"
     )
 

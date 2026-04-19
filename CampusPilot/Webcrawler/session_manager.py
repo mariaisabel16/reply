@@ -33,6 +33,13 @@ CURRICULUM_URL = "https://campus.tum.de/tumonline/ee/ui/ca2/app/desktop/#/slc.cm
 STUDENT_CARD_URL = "https://campus.tum.de/tumonline/wbstudkart.wbstudent"
 TIMEOUT = 20000
 
+
+def _app_home_url() -> str:
+    """Startseite aus LOGIN_URL ableiten (gleicher Host/Pfad, z. B. campus.tum.de oder demo.campus.tum.de)."""
+    if "#/login" in LOGIN_URL:
+        return re.sub(r"#/login(?:\?[^#]*)?$", "#/home?$ctx=lang=DE", LOGIN_URL, count=1, flags=re.IGNORECASE)
+    return HOME_URL
+
 console = Console()
 
 
@@ -167,6 +174,255 @@ def extract_study_status(text: str):
             if value and value not in values:
                 values.append(value)
     return values if values else None
+
+
+def _extract_studiengang_from_kv(*dicts: dict) -> str | None:
+    """Studiengang / Studienprogramm aus Kartei-Tabellen (exakte oder ähnliche Spaltenüberschriften)."""
+    priority = (
+        "Studiengang",
+        "Studienprogramm",
+        "Studienfach",
+        "Studienzweig",
+        "Hauptfach",
+    )
+    for d in dicts:
+        if not isinstance(d, dict):
+            continue
+        for pl in priority:
+            pl_l = pl.lower()
+            for k, v in d.items():
+                if not isinstance(k, str):
+                    continue
+                if k.strip().lower() == pl_l:
+                    vs = str(v).strip() if v is not None else ""
+                    if vs:
+                        return vs
+    for d in dicts:
+        if not isinstance(d, dict):
+            continue
+        for k, v in d.items():
+            if not isinstance(k, str):
+                continue
+            kl = k.lower()
+            if ("studiengang" in kl or "studienprogramm" in kl) and v is not None:
+                vs = str(v).strip()
+                if vs:
+                    return vs
+    return None
+
+
+_STUDIENGANG_NOISE_AFTER = (
+    "\n",
+    "|",
+    " ECTS",
+    " Credits",
+    " Matrikel",
+    " Matrikelnummer",
+    " SPO",
+    " Studien-ID",
+    " Studien-ID:",
+    " PO ",
+    " Prüfungsordnung",
+)
+
+
+def _truncate_studiengang_candidate(raw: str) -> str:
+    s = clean_text(raw.replace("\xa0", " "))
+    if not s:
+        return ""
+    for sep in _STUDIENGANG_NOISE_AFTER:
+        if sep in s:
+            s = s.split(sep, 1)[0].strip()
+    # Klammerzusätze wie (B. Sc.) oder (PO 2019) oft am Ende
+    if len(s) > 80 and "(" in s:
+        s = s.split("(", 1)[0].strip()
+    return s.strip(" ,.;:-—")
+
+
+_STUDIENGANG_SECOND_TOKEN_BLOCK = frozenset(
+    {
+        "arbeit",
+        "thesis",
+        "kolloquium",
+        "prüfung",
+        "prufung",
+        "studium",
+        "student",
+        "students",
+        "phase",
+        "ordnung",
+    }
+)
+
+
+def _studiengang_body_candidate_ok(s: str) -> bool:
+    parts = [p for p in s.split() if p]
+    if len(parts) < 2:
+        return False
+    deg = parts[0].lower().rstrip(".")
+    if deg in ("b.sc", "m.sc", "b.a", "m.a"):
+        pass
+    elif deg not in ("bachelor", "master"):
+        if not (parts[0].lower().startswith("bachelor") or parts[0].lower().startswith("master")):
+            return False
+    if len(parts) >= 2:
+        w2 = re.sub(r"^[^a-zäöüßA-ZÄÖÜ]+", "", parts[1]).lower()
+        if w2 in _STUDIENGANG_SECOND_TOKEN_BLOCK:
+            return False
+    if len(s) < 10 or len(s) > 140:
+        return False
+    return True
+
+
+def _extract_studiengang_from_body(text: str) -> str | None:
+    """
+    Studiengang aus dem sichtbaren Seitentext (z. B. „Bachelor Wirtschaftsinformatik“,
+    „Bachelor Informatik“, „Master Data Engineering“, „B.Sc. Informatik“), falls die
+    Kartei-Tabellen kein klares Schlüssel/Wert-Feld liefern.
+    """
+    if not text:
+        return None
+    t = normalize_for_regex(text)
+
+    labeled = re.search(
+        r"(?:Studiengang|Studienprogramm|Studienfach|Studiengänge|Degree\s*program|Course\s*of\s*study)"
+        r"\s*[:\-]\s*([^\n|]{3,120})",
+        t,
+        re.IGNORECASE,
+    )
+    if labeled:
+        cand = _truncate_studiengang_candidate(labeled.group(1))
+        if len(cand) >= 8 and re.search(
+            r"(?i)\b(bachelor|master|b\.sc\.|m\.sc\.|b\.a\.|m\.a\.|diplom)\b", cand
+        ):
+            return cand
+
+    # „Bachelor of Science …“ / „Master …“ / „Bachelor Informatik“ (nicht Bachelorarbeit)
+    for m in re.finditer(
+        r"\b((?:Bachelor(?!arbeit)|Master(?!arbeit))(?:\s+of\s+(?:Science|Arts))?\s+"
+        r"[A-ZÄÖÜa-zäöüß][A-Za-zÄÖÜäöüß0-9\-]*(?:\s+[A-ZÄÖÜa-zäöüß][A-Za-zÄÖÜäöüß0-9\-]*){0,6})\b",
+        t,
+        re.IGNORECASE,
+    ):
+        cand = _truncate_studiengang_candidate(m.group(1))
+        if _studiengang_body_candidate_ok(cand):
+            return cand
+
+    for m in re.finditer(
+        r"\b((?:B\.Sc\.|M\.Sc\.|B\.A\.|M\.A\.)\s+[A-Za-zÄÖÜäöüß][A-Za-zÄÖÜäöüß0-9\-\s]{2,60}?)\b",
+        t,
+        re.IGNORECASE,
+    ):
+        cand = _truncate_studiengang_candidate(m.group(1))
+        if len(cand) >= 8 and len(cand) <= 120:
+            return cand
+
+    return None
+
+
+def _extract_studiengang_mein_studium_heading(text: str) -> str | None:
+    """
+    Seite „Mein Studium“ (nach Klick von der Startseite): typische Kopfzeilen wie
+    „[20211] Bachelor Informatik“ oder „Informatik [20211], Bachelor of Science (…)“.
+    """
+    if not text:
+        return None
+    t = normalize_for_regex(text)
+    m = re.search(
+        r"\[\d{4,6}\]\s*((?:Bachelor|Master)(?:\s+of\s+(?:Science|Arts))?\s+"
+        r"[A-Za-zÄÖÜäöüß][A-Za-zÄÖÜäöüß0-9\-\s]{1,72})",
+        t,
+        re.IGNORECASE,
+    )
+    if m:
+        cand = _truncate_studiengang_candidate(m.group(1))
+        if len(cand) >= 10:
+            return cand
+    m = re.search(
+        r"\b([A-Za-zÄÖÜäöüß][A-Za-zÄÖÜäöüß0-9\-\s]{1,42}?)\s*\[\d{4,6}\]\s*,\s*"
+        r"(Bachelor\s+of\s+(?:Science|Arts))\b",
+        t,
+        re.IGNORECASE,
+    )
+    if m:
+        fach, deg = m.group(1).strip(), m.group(2).strip()
+        return _truncate_studiengang_candidate(f"{deg} ({fach})")
+    return None
+
+
+def _parse_fachsemester_int(raw: object) -> int | None:
+    if raw is None:
+        return None
+    s = str(raw).strip()
+    if not s:
+        return None
+    m = re.match(r"^\s*(\d{1,2})\s*(?:/|\.)?", s)
+    if not m:
+        m = re.search(r"\b(\d{1,2})\b", s)
+    if not m:
+        return None
+    try:
+        n = int(m.group(1))
+    except ValueError:
+        return None
+    if 1 <= n <= 40:
+        return n
+    return None
+
+
+def _extract_fachsemester_from_kv(*dicts: dict) -> int | None:
+    hints = ("fachsemester", "fachsem", "semester im studium", "studiensemester")
+    for d in dicts:
+        if not isinstance(d, dict):
+            continue
+        for k, v in d.items():
+            if not isinstance(k, str):
+                continue
+            kl = k.lower()
+            if any(h in kl for h in hints) and "name" not in kl:
+                fs = _parse_fachsemester_int(v)
+                if fs is not None:
+                    return fs
+    return None
+
+
+def _extract_fachsemester_from_body(text: str) -> int | None:
+    """Fallback: Fachsemester-Zeile nach Studien-ID-Zeile (TUMonline-Layout, vgl. tumonline_scraper)."""
+    lines = text.splitlines()
+    for i, line in enumerate(lines):
+        stripped = line.strip()
+        if re.match(r"(\d{4}\s\d{2}\s\d{3})", stripped):
+            for data_line in lines[i + 1 : i + 8]:
+                m = re.match(r"^\s*(\d+)\s*/", data_line)
+                if m:
+                    try:
+                        n = int(m.group(1))
+                    except ValueError:
+                        continue
+                    if 1 <= n <= 40:
+                        return n
+            break
+    return None
+
+
+def _extract_studien_id_from_body(text: str) -> str | None:
+    for line in text.splitlines():
+        stripped = line.strip()
+        m = re.match(r"(\d{4}\s\d{2}\s\d{3})", stripped)
+        if m:
+            return m.group(1).strip()
+    return None
+
+
+def _extract_spo_version_from_body(text: str) -> str | None:
+    for line in text.splitlines():
+        stripped = line.strip()
+        if re.match(r"(\d{4}\s\d{2}\s\d{3})", stripped):
+            spo = re.search(r"\b(\d{5})\b", stripped)
+            if spo:
+                return spo.group(1)
+            break
+    return None
 
 
 async def get_body_text(page):
@@ -321,11 +577,15 @@ async def scrape_curriculum_page(page):
     links = await get_links(page)
     widgets = await extract_status_widgets(page)
     modules = await extract_curriculum_cards(page)
+    studiengang_page = _extract_studiengang_mein_studium_heading(
+        normalized_text
+    ) or _extract_studiengang_from_body(normalized_text)
     return {
         "url": page.url,
         "name": extract_name(text),
         "semester": extract_semester(text),
         "matrikelnummer": extract_matrikelnummer(text),
+        "studiengang": studiengang_page,
         "ects": widgets.get("ects") or extract_ects(normalized_text),
         "average": widgets.get("average") or extract_average(normalized_text),
         "study_status": extract_study_status(normalized_text),
@@ -469,6 +729,77 @@ async def automated_login(page, username: str, password: str):
     print_ok("Login erfolgreich abgeschlossen.")
 
 
+async def navigate_to_mein_studium_from_home(page) -> bool:
+    """
+    Von der TUMonline-Startseite (Applikationen) auf die Kachel „Mein Studium“ klicken,
+    bis die myStudies-/Curriculum-Ansicht geladen ist (nutzer-spezifische URLs).
+    """
+    home = _app_home_url()
+    print_step(f"Öffne Startseite … ({home[:56]}…)")
+    try:
+        await page.goto(home, wait_until="domcontentloaded", timeout=TIMEOUT)
+    except Exception as e:
+        print_warn(f"Startseite nicht erreichbar: {e}")
+        return False
+
+    await page.wait_for_timeout(2500)
+    try:
+        await page.wait_for_load_state("networkidle", timeout=15000)
+    except Exception:
+        pass
+
+    try:
+        filt = page.locator(
+            'input[placeholder*="iltern"], input[placeholder*="pplikationstitel"], '
+            'input[placeholder*="Application"]'
+        ).first
+        if await filt.is_visible():
+            await filt.fill("Mein Studium")
+            await page.wait_for_timeout(900)
+    except Exception:
+        pass
+
+    click_targets = [
+        page.get_by_role("link", name=re.compile(r"Mein Studium", re.I)).first,
+        page.get_by_role("button", name=re.compile(r"Mein Studium", re.I)).first,
+        page.locator("mat-card, a, button, [role='button'], [role='link']").filter(
+            has_text=re.compile(r"Mein Studium", re.I)
+        ).first,
+    ]
+
+    clicked = False
+    for target in click_targets:
+        try:
+            if await target.count() == 0:
+                continue
+            await target.wait_for(state="visible", timeout=12000)
+            await target.click(timeout=10000)
+            clicked = True
+            print_ok("„Mein Studium“ angeklickt.")
+            break
+        except Exception:
+            continue
+
+    if not clicked:
+        print_warn("Kein klickbares „Mein Studium“ auf der Startseite gefunden.")
+        return False
+
+    try:
+        await page.wait_for_url(
+            re.compile(r"myStudies|myCurriculumElements|slc\.cm\.cs|/student/", re.I),
+            timeout=35000,
+        )
+    except Exception:
+        await page.wait_for_timeout(6000)
+
+    url = page.url.lower()
+    if "myStudies".lower() in url or "mycurriculumelement" in url or "slc.cm.cs" in url:
+        print_ok(f"Curriculum-/Studium-Ansicht geladen: …{url[-72:]}")
+        return True
+    print_warn(f"Nach Klick unerwartete URL: {url[:120]}…")
+    return False
+
+
 async def extract_student_card_data(page):
     text = await get_body_text(page)
     result = {
@@ -476,11 +807,16 @@ async def extract_student_card_data(page):
         "matrikelnummer": None,
         "nachname": None,
         "vorname": None,
+        "full_name": None,
         "email": None,
         "geburtsdatum": None,
         "geburtsort": None,
         "telefon": None,
         "geschlecht": None,
+        "studiengang": None,
+        "fachsemester": None,
+        "studien_id": None,
+        "spo_version": None,
         "basisinformationen": {},
         "weitere_informationen": {},
         "text_preview": text[:4000],
@@ -570,6 +906,32 @@ async def extract_student_card_data(page):
         or extract_matrikelnummer(text)
     )
 
+    sg_kv = _extract_studiengang_from_kv(basis, weitere)
+    sg_body = _extract_studiengang_from_body(text)
+    result["studiengang"] = sg_kv or sg_body
+    fs = _extract_fachsemester_from_kv(basis, weitere)
+    if fs is None:
+        fs = _extract_fachsemester_from_body(text)
+    result["fachsemester"] = fs
+
+    result["studien_id"] = _extract_studien_id_from_body(text)
+    result["spo_version"] = _extract_spo_version_from_body(text)
+
+    vor_raw = basis.get("Vorname") or weitere.get("Vorname")
+    nach_raw = (
+        basis.get("Familien- oder Nachname")
+        or basis.get("Nachname")
+        or weitere.get("Familien- oder Nachname")
+        or weitere.get("Nachname")
+    )
+    if vor_raw:
+        result["vorname"] = str(vor_raw).strip()
+    if nach_raw:
+        result["nachname"] = str(nach_raw).strip()
+    full = f"{result.get('vorname') or ''} {result.get('nachname') or ''}".strip()
+    if full:
+        result["full_name"] = full
+
     return result
 
 
@@ -592,9 +954,15 @@ def render_summary(curriculum_data: dict, student_card_data: dict | None = None)
     ects_total = ects.get("ects_total", "Nicht gefunden")
     email = student_card_data.get("email") or "Nicht gefunden"
 
+    studiengang = (
+        (student_card_data or {}).get("studiengang")
+        or curriculum_data.get("studiengang")
+        or "Nicht gefunden"
+    )
     summary = (
         f"[bold]Name:[/bold] {name}\n"
         f"[bold]Matrikelnummer:[/bold] {matrikelnummer}\n"
+        f"[bold]Studiengang:[/bold] {studiengang}\n"
         f"[bold]Semester / Status:[/bold] {semester}\n"
         f"[bold]ECTS:[/bold] {ects_current} / {ects_total}\n"
         f"[bold]Vorläufige Durchschnittsnote:[/bold] {avg}"
@@ -643,6 +1011,7 @@ def render_student_card_table(data: dict):
 
     fields = [
         ("Matrikelnummer", data.get("matrikelnummer")),
+        ("Studiengang", data.get("studiengang")),
     ]
 
     for label, value in fields:
@@ -715,13 +1084,18 @@ async def scrape_tumonline(
                 await browser.close()
                 raise RuntimeError(f"Login fehlgeschlagen: {e}")
 
-        await page.goto(CURRICULUM_URL, wait_until="domcontentloaded", timeout=TIMEOUT)
+        if not await navigate_to_mein_studium_from_home(page):
+            print_warn("Fallback: direkte Curriculum-URL (ohne „Mein Studium“-Kachel).")
+            await page.goto(CURRICULUM_URL, wait_until="domcontentloaded", timeout=TIMEOUT)
+
         await page.wait_for_timeout(5000)
 
         current_url = page.url.lower()
         if any(x in current_url for x in ["login", "shibboleth", "idp"]):
             await browser.close()
             raise RuntimeError("Session ist ungültig oder abgelaufen. Bitte lösche die Session-Datei und starte neu.")
+
+        result["curriculum_url"] = page.url
 
         if save_debug_screenshots:
             await page.screenshot(path="tum_curriculum.png", full_page=True)
@@ -741,6 +1115,10 @@ async def scrape_tumonline(
                 f.write(student_card_body_text)
 
         result["student_card_data"] = await extract_student_card_data(page)
+
+        result["studiengang"] = result["student_card_data"].get("studiengang") or result[
+            "curriculum_data"
+        ].get("studiengang")
 
         await browser.close()
         return result

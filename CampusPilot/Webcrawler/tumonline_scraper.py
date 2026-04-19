@@ -97,6 +97,74 @@ async def get_body_text(page: Page) -> str:
         return ""
 
 
+def _truncate_studiengang_line(s: str) -> str:
+    s = clean_text(s.split("\n")[0] if s else "")
+    for sep in ("\n", "  ", " Credits", " ECTS", " Pflicht", " | "):
+        if sep in s:
+            s = s.split(sep, 1)[0].strip()
+    return s.strip(" ,.;:-—")[:160]
+
+
+async def extract_studiengang_from_mein_studium_dom(page: Page) -> str | None:
+    """
+    TUMonline CA2 / Angular: Studiengang aus sichtbarer Überschrift oder Baumnavigation lesen
+    (z. B. „[20211] Bachelor Informatik“, Sidebar „Bachelor Informatik“).
+    """
+    noise = re.compile(r"Pflichtmodul|Pflichtmodule|Prüfung|Semesterplan|Modulhandbuch", re.I)
+
+    async def _scan_locator(loc) -> str | None:
+        try:
+            n = await loc.count()
+            for i in range(min(n, 30)):
+                raw = await loc.nth(i).inner_text()
+                txt = clean_text(raw)
+                if not txt or len(txt) > 200:
+                    continue
+                first = txt.split("\n")[0].strip()
+                m = re.match(
+                    r"^\s*(\[\d{4,6}\]\s*(?:Bachelor|Master)(?:\s+of\s+(?:Science|Arts))?\s+.+)$",
+                    first,
+                    re.I,
+                )
+                if m and not noise.search(first):
+                    cand = _truncate_studiengang_line(m.group(1))
+                    if len(cand) >= 12:
+                        return cand
+                if re.match(r"^(Bachelor|Master)\s+\S+", first, re.I) and len(first) < 100:
+                    if not noise.search(first) and "Credits" not in first:
+                        return _truncate_studiengang_line(first)
+        except Exception:
+            pass
+        return None
+
+    for sel in (
+        '[role="heading"]',
+        "h1",
+        "h2",
+        ".mat-mdc-card-title",
+        "mat-card-title",
+        ".mdc-typography--headline5",
+        ".mdc-typography--headline4",
+        "[class*='headline']",
+    ):
+        hit = await _scan_locator(page.locator(sel))
+        if hit:
+            return hit
+
+    try:
+        tree = page.locator(
+            "mat-tree-node, .mat-tree-node, [role='treeitem'], "
+            "a.mat-mdc-list-item, .mat-mdc-list-item-text"
+        )
+        hit = await _scan_locator(tree)
+        if hit:
+            return hit
+    except Exception:
+        pass
+
+    return None
+
+
 # ─────────────────────────────────────────────
 # LOGIN
 # ─────────────────────────────────────────────
@@ -203,6 +271,7 @@ async def scrape_student_card(page: Page) -> dict:
         "full_name":         None,
         "vorname":           None,
         "nachname":          None,
+        "studiengang":       None,
         "fachsemester":      None,
         "studien_id":        None,
         "spo_version":       None,
@@ -241,6 +310,20 @@ async def scrape_student_card(page: Page) -> dict:
                     result[current][values[0]] = values[1]
     except Exception:
         pass
+
+    for section in ("basisinformationen", "weitere_informationen"):
+        d = result.get(section) or {}
+        if not isinstance(d, dict):
+            continue
+        for k, v in d.items():
+            if not isinstance(k, str) or not isinstance(v, str):
+                continue
+            kl = k.strip().lower()
+            if ("studiengang" in kl or "studienprogramm" in kl or kl == "studienfach") and v.strip():
+                result["studiengang"] = v.strip()
+                break
+        if result.get("studiengang"):
+            break
 
     # Extract fields from body text.
     # Line 1 has the display name: "Maria Sagastume Giron"
@@ -380,7 +463,15 @@ def extract_name(text):
 async def scrape_curriculum(page: Page) -> dict:
     if not CURRICULUM_URL:
         console.print("[yellow]⚠[/yellow] Curriculum URL not available — skipping")
-        return {"name": None, "matrikelnummer": None, "ects": None, "average": None, "modules": []}
+        return {
+            "url": None,
+            "name": None,
+            "matrikelnummer": None,
+            "studiengang": None,
+            "ects": None,
+            "average": None,
+            "modules": [],
+        }
 
     console.print("[cyan]→[/cyan] Opening curriculum page...")
     await page.goto(CURRICULUM_URL, wait_until="domcontentloaded", timeout=TIMEOUT)
@@ -392,6 +483,21 @@ async def scrape_curriculum(page: Page) -> dict:
     text = await get_body_text(page)
     save_text("curriculum_body.txt", text)
     norm = normalize_for_regex(text)
+
+    studiengang_dom = await extract_studiengang_from_mein_studium_dom(page)
+    studiengang_text = None
+    try:
+        from session_manager import _extract_studiengang_from_body
+        from session_manager import _extract_studiengang_mein_studium_heading
+
+        studiengang_text = _extract_studiengang_mein_studium_heading(norm) or _extract_studiengang_from_body(
+            norm
+        )
+    except ImportError:
+        pass
+    studiengang = studiengang_dom or studiengang_text
+    if studiengang:
+        console.print(f"[green]✓[/green] Studiengang: {studiengang}")
 
     # ECTS
     ects = None
@@ -424,8 +530,10 @@ async def scrape_curriculum(page: Page) -> dict:
             })
 
     return {
+        "url":            page.url,
         "name":           extract_name(text),
         "matrikelnummer": extract_matrikelnummer(text),
+        "studiengang":    studiengang,
         "ects":           ects,
         "average":        avg,
         "modules":        modules,
@@ -543,9 +651,15 @@ def display_summary(curriculum: dict, student: dict, modules: list):
     in_prog    = [m for m in modules if m["in_progress"]]
     total_ects = sum(m["credits"] or 0 for m in passed)
 
+    stud = (
+        student.get("studiengang")
+        or curriculum.get("studiengang")
+        or "N/A"
+    )
     console.print(Panel(
         f"[bold]Name:[/bold]              {student.get('full_name') or curriculum.get('name') or 'N/A'}\n"
         f"[bold]Matrikelnummer:[/bold]    {student.get('matrikelnummer') or 'N/A'}\n"
+        f"[bold]Studiengang:[/bold]       {stud}\n"
         f"[bold]Fachsemester:[/bold]      {student.get('fachsemester') or 'N/A'}\n"
         f"[bold]Studien-ID:[/bold]        {student.get('studien_id') or 'N/A'}\n"
         f"[bold]Passed modules:[/bold]    {len(passed)}  ({total_ects} ECTS)\n"
@@ -633,6 +747,9 @@ async def main():
         # Curriculum — uses CURRICULUM_URL built by scrape_student_card
         curriculum = await scrape_curriculum(page)
         console.print("[green]✓[/green] Curriculum data extracted.")
+        sg_cur = curriculum.get("studiengang") if isinstance(curriculum, dict) else None
+        if sg_cur and not (isinstance(student.get("studiengang"), str) and str(student["studiengang"]).strip()):
+            student["studiengang"] = str(sg_cur).strip()
 
         # Grades
         modules = await scrape_grades(page)
@@ -705,9 +822,23 @@ async def scrape_all_async(username: str, password: str, headless: bool = True) 
             await browser.close()
 
     passed = [m for m in modules if m.get("passed")]
+    sg_cur = curriculum.get("studiengang") if isinstance(curriculum, dict) else None
+    if isinstance(student, dict) and sg_cur and not (isinstance(student.get("studiengang"), str) and student["studiengang"].strip()):
+        student["studiengang"] = str(sg_cur).strip()
+    merged_studiengang = None
+    if isinstance(student, dict):
+        v = student.get("studiengang")
+        if isinstance(v, str) and v.strip():
+            merged_studiengang = v.strip()
+    if not merged_studiengang and isinstance(curriculum, dict):
+        v = curriculum.get("studiengang")
+        if isinstance(v, str) and v.strip():
+            merged_studiengang = v.strip()
+
     return {
         "scraped_at":        datetime.now().isoformat(),
         "environment":       "demo.campus.tum.de",
+        "studiengang":       merged_studiengang,
         "student_card_data": student,
         "curriculum_data":   curriculum,
         "modules_data": {

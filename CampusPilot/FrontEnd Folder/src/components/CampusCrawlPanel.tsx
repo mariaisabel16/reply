@@ -200,11 +200,28 @@ export function CampusCrawlPanel() {
                   ? String(curriculum.matrikelnummer)
                   : null;
 
+            const studiengangTop =
+              data && typeof (data as { studiengang?: unknown }).studiengang === "string"
+                ? String((data as { studiengang: string }).studiengang).trim()
+                : "";
+            const studiengangCur =
+              curriculum && curriculum.studiengang != null && String(curriculum.studiengang).trim()
+                ? String(curriculum.studiengang).trim()
+                : "";
+            const studiengangCard =
+              studentCard && studentCard.studiengang != null && String(studentCard.studiengang).trim()
+                ? String(studentCard.studiengang).trim()
+                : "";
+            const studiengang = studiengangCard || studiengangCur || studiengangTop || null;
             const fachsemester =
               studentCard && studentCard.fachsemester != null ? String(studentCard.fachsemester) : null;
             const studienId =
               studentCard && studentCard.studien_id != null && String(studentCard.studien_id).trim()
                 ? String(studentCard.studien_id)
+                : null;
+            const spoVersion =
+              studentCard && studentCard.spo_version != null && String(studentCard.spo_version).trim()
+                ? String(studentCard.spo_version)
                 : null;
 
             // Stats: prefer modulesData (new scraper), fallback to counting from gradeItems
@@ -236,6 +253,12 @@ export function CampusCrawlPanel() {
                 )}
                 {studyStatus && <p className="crawl-summary-sub">{studyStatus}</p>}
                 <div className="crawl-stats-grid">
+                  {studiengang && (
+                    <div className="crawl-stats-item crawl-stats-item--wide">
+                      <span className="crawl-stats-label">Studiengang</span>
+                      <span className="crawl-stats-value crawl-stats-value--wrap">{studiengang}</span>
+                    </div>
+                  )}
                   {fachsemester && (
                     <div className="crawl-stats-item">
                       <span className="crawl-stats-label">Fachsemester</span>
@@ -246,6 +269,12 @@ export function CampusCrawlPanel() {
                     <div className="crawl-stats-item">
                       <span className="crawl-stats-label">Studien-ID</span>
                       <span className="crawl-stats-value" style={{ fontSize: "0.78rem" }}>{studienId}</span>
+                    </div>
+                  )}
+                  {spoVersion && (
+                    <div className="crawl-stats-item">
+                      <span className="crawl-stats-label">SPO</span>
+                      <span className="crawl-stats-value">{spoVersion}</span>
                     </div>
                   )}
                   {curriculum && isRecord(curriculum.ects) && (
