@@ -376,6 +376,161 @@
   border-color: var(--crawl-border);
 }
 
+/* ---- Matrikel pill inside summary ---- */
+.crawl-summary-matrikel {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0.3rem 0 0.15rem;
+  padding: 0.3rem 0.6rem;
+  border-radius: 8px;
+  background: var(--crawl-muted-bg);
+  border: 1px solid var(--crawl-border);
+  font-size: 0.78rem;
+}
+
+.crawl-summary-matrikel-label {
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--crawl-text-muted);
+}
+
+.crawl-summary-matrikel strong {
+  font-weight: 700;
+  color: var(--crawl-text);
+}
+
+/* ---- Stats grid (passed / in-progress / ECTS) ---- */
+.crawl-stats-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.crawl-stats-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.45rem 0.7rem;
+  border-radius: 8px;
+  background: var(--crawl-muted-bg);
+  border: 1px solid var(--crawl-border);
+  min-width: 5rem;
+}
+
+.crawl-stats-item--passed {
+  background: var(--crawl-success-bg);
+  border-color: #bbf7d0;
+}
+
+.crawl-stats-item--progress {
+  background: var(--crawl-accent-soft);
+  border-color: #bfdbfe;
+}
+
+.crawl-stats-label {
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--crawl-text-muted);
+}
+
+.crawl-stats-item--passed .crawl-stats-label { color: var(--crawl-success); }
+.crawl-stats-item--progress .crawl-stats-label { color: var(--crawl-accent); }
+
+.crawl-stats-value {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--crawl-text);
+  line-height: 1.2;
+}
+
+.crawl-stats-value small {
+  font-size: 0.72rem;
+  font-weight: 400;
+  color: var(--crawl-text-muted);
+}
+
+/* ---- Modules table ---- */
+.crawl-mod-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+}
+
+.crawl-mod-table thead tr {
+  background: #f1f5f9;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.crawl-mod-table th {
+  padding: 0.4rem 0.65rem;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--crawl-text-muted);
+  text-align: left;
+  border-bottom: 1px solid var(--crawl-border);
+  white-space: nowrap;
+}
+
+.crawl-mod-table td {
+  padding: 0.42rem 0.65rem;
+  border-bottom: 1px solid var(--crawl-border);
+  vertical-align: middle;
+  color: var(--crawl-text);
+  line-height: 1.35;
+}
+
+.crawl-mod-table tbody tr:last-child td { border-bottom: none; }
+
+.crawl-mod-table tbody tr:hover td { background: #f8fafc; }
+
+.crawl-mod-table-title {
+  font-weight: 500;
+  max-width: 18rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.crawl-mod-table-credits {
+  white-space: nowrap;
+  color: var(--crawl-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.crawl-mod-table-id {
+  white-space: nowrap;
+  font-size: 0.7rem;
+  color: var(--crawl-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.crawl-mod-table-date {
+  white-space: nowrap;
+  font-size: 0.73rem;
+  color: var(--crawl-text-muted);
+}
+
+.crawl-mod-table-grade {
+  white-space: nowrap;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.grade-excellent { color: #15803d; }
+.grade-good      { color: #2563eb; }
+.grade-ok        { color: #b45309; }
+.grade-pass      { color: #9a3412; }
+
 .crawl-raw {
   margin: 0.5rem 1rem 1rem;
   padding: 0.55rem 0.65rem;
