@@ -8,21 +8,23 @@ type Props = {
 };
 
 const MOCK_AGENTS = [
-  { id: "scout", name: "Scout-01", color: "#3b82f6" },
-  { id: "tutor", name: "Tutor-Alpha", color: "#f97316" },
+  { id: "Room Finder", name: "Room Finder", color: "#3b82f6" },
+  { id: "Chief", name: "Orchestrator", color: "#f97316" },
   { id: "strat", name: "Strategist", color: "#22c55e" },
 ];
 
 const MOCK_CONSOLE = [
   "[18:16:56] AGENT_STRATEGIST: Sync complete — TUMonline session valid.",
-  "[18:17:02] SCOUT_01: No new room conflicts for SS 2026.",
+  "[18:17:02] ROOM_FINDER: No new room conflicts for SS 2026.",
   "[18:17:41] TUTOR_ALPHA: Slides checksum OK (MA9712).",
 ];
 
 const MOCK_LUNCH = [
-  { dish: "Almond curry with tofu", price: "3,50 €" },
-  { dish: "Pasta bar — pesto", price: "4,20 €" },
-  { dish: "Soup of the day", price: "2,80 €" },
+  { dish: "Almond curry with tofu", price: "3,50 €/100g" },
+  { dish: "Pasta bar — pesto", price: "4,20 €/100g" },
+  { dish: "Soup of the day", price: "2,80 €/100g" },
+  { dish: "Ice Cream", price: "0,50 €/100g" }
+
 ];
 
 export function DashboardShell({ username }: Props) {
@@ -140,31 +142,51 @@ export function DashboardShell({ username }: Props) {
 
           <section className="dash-card dash-interop" aria-labelledby="interop-title">
             <h2 id="interop-title" className="dash-card-title dash-card-title--sm">
-              Service interop
+              Useful links
             </h2>
-            <div className="dash-interop-grid">
-              <div>
-                <span className="dash-interop-name">TUM</span>
-                <span className="dash-interop-state dash-interop-state--ok">Authenticated</span>
-              </div>
-              <div>
-                <span className="dash-interop-name">Moodle</span>
-                <span className="dash-interop-state dash-interop-state--ok">Authenticated</span>
-              </div>
-              <div>
-                <span className="dash-interop-name">ZHS</span>
-                <span className="dash-interop-state dash-interop-state--off">Disconnected</span>
-              </div>
-              <div>
-                <span className="dash-interop-name">Library</span>
-                <span className="dash-interop-state dash-interop-state--mid">Bridged</span>
-              </div>
-            </div>
+            <ul className="dash-link-list">
+              <li>
+                <a href="https://artemis.tum.sexy/" target="_blank" rel="noreferrer" className="dash-link-item">
+                  Artemis
+                  <span className="dash-link-icon">↗</span>
+                </a>
+              </li>
+              <li>
+                <a href="https://hunger.tum.sexy/" target="_blank" rel="noreferrer" className="dash-link-item">
+                  TUM Hunger
+                  <span className="dash-link-icon">↗</span>
+                </a>
+              </li>
+              <li>
+                <a href="https://reddit.tum.sexy/" target="_blank" rel="noreferrer" className="dash-link-item">
+                  Reddit TUM
+                  <span className="dash-link-icon">↗</span>
+                </a>
+              </li>
+              <li>
+                <a href="https://guessr.tum.sexy/" target="_blank" rel="noreferrer" className="dash-link-item">
+                  Guessr Game TUM
+                  <span className="dash-link-icon">↗</span>
+                </a>
+              </li>
+              <li>
+                <a href="https://matching-in.cit.tum.de/" target="_blank" rel="noreferrer" className="dash-link-item">
+                  TUM Matching System
+                  <span className="dash-link-icon">↗</span>
+                </a>
+              </li>
+              <li>
+                <a href="https://zulip.cit.tum.de/login/" target="_blank" rel="noreferrer" className="dash-link-item">
+                  TUM Zulip
+                  <span className="dash-link-icon">↗</span>
+                </a>
+              </li>
+            </ul>
           </section>
 
           <section className="dash-card dash-lunch" aria-labelledby="lunch-title">
             <h2 id="lunch-title" className="dash-card-title dash-card-title--sm">
-              Lunch analytics
+              Mensa Food
             </h2>
             <ul className="dash-lunch-list">
               {MOCK_LUNCH.map((row) => (
