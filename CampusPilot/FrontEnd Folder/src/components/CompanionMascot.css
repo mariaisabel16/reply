@@ -17,19 +17,18 @@
   height: 100%;
   position: relative;
   z-index: 1;
-  filter: drop-shadow(0 10px 22px rgba(0, 0, 0, 0.45))
-    drop-shadow(1.5px 0 0 rgba(255, 60, 120, 0.12)) drop-shadow(-1.5px 0 0 rgba(0, 220, 255, 0.12));
+  filter: drop-shadow(0 8px 18px rgba(15, 23, 42, 0.28));
 }
 
 .companion-halo {
   position: absolute;
-  inset: -18%;
+  inset: -14%;
   border-radius: 50%;
   background: radial-gradient(
     closest-side,
-    rgba(0, 101, 189, 0.38),
-    rgba(12, 124, 156, 0.14) 58%,
-    transparent 74%
+    rgba(0, 101, 189, 0.22),
+    rgba(12, 124, 156, 0.08) 62%,
+    transparent 78%
   );
   filter: blur(0.5px);
   animation: companion-halo-breathe 5.5s ease-in-out infinite;
@@ -37,29 +36,23 @@
 
 .companion-chromatic {
   position: absolute;
-  inset: -8%;
+  inset: -6%;
   border-radius: 50%;
   pointer-events: none;
-  mix-blend-mode: screen;
-  opacity: 0.22;
-  background: conic-gradient(
-    from 120deg,
-    rgba(255, 80, 120, 0.35),
-    rgba(80, 200, 255, 0.35),
-    rgba(255, 220, 80, 0.3),
-    rgba(255, 80, 120, 0.35)
-  );
-  animation: companion-chromatic-spin 10s linear infinite;
+  mix-blend-mode: multiply;
+  opacity: 0.08;
+  background: conic-gradient(from 180deg, rgba(0, 101, 189, 0.4), rgba(12, 124, 156, 0.35), rgba(0, 101, 189, 0.4));
+  animation: companion-chromatic-spin 14s linear infinite;
 }
 
 .companion-flash {
   position: absolute;
-  inset: -30%;
+  inset: -20%;
   border-radius: 50%;
-  background: radial-gradient(circle at 50% 42%, rgba(255, 255, 255, 0.55), transparent 58%);
+  background: radial-gradient(circle at 50% 40%, rgba(255, 255, 255, 0.35), transparent 55%);
   opacity: 0;
   mix-blend-mode: screen;
-  animation: companion-flash 7.2s ease-in-out infinite;
+  animation: companion-flash 8s ease-in-out infinite;
 }
 
 @keyframes companion-halo-breathe {

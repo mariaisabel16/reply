@@ -188,8 +188,6 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.65rem 1rem;
   margin-bottom: 1rem;
   padding: 0.45rem 0.15rem;
   flex-shrink: 0;
@@ -202,29 +200,6 @@
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: #64748b;
-}
-
-.dash-toolbar-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.45rem;
-}
-
-.dash-toolbar-chip {
-  border: 1px solid #cbd5e1;
-  background: #fff;
-  color: #334155;
-  font-size: 0.78rem;
-  font-weight: 600;
-  padding: 0.35rem 0.65rem;
-  border-radius: 999px;
-  cursor: default;
-}
-
-.dash-toolbar-chip-meta {
-  font-weight: 500;
-  color: #94a3b8;
-  font-size: 0.72rem;
 }
 
 .dash-grid {

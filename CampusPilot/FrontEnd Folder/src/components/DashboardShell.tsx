@@ -87,21 +87,13 @@ export function DashboardShell({ username }: Props) {
       <div className="dash-main">
         <div className="dash-toolbar" role="region" aria-label="Arbeitsbereich">
           <p className="dash-toolbar-title">Command center</p>
-          <div className="dash-toolbar-actions">
-            <button type="button" className="dash-toolbar-chip">
-              TUMonline-Sync <span className="dash-toolbar-chip-meta">(demnächst)</span>
-            </button>
-            <button type="button" className="dash-toolbar-chip">
-              Planer <span className="dash-toolbar-chip-meta">(Mock)</span>
-            </button>
-          </div>
         </div>
 
         <div className="dash-grid">
           <section className="dash-card dash-orchestration" aria-labelledby="orch-title">
             <div className="dash-card-head">
               <h2 id="orch-title" className="dash-card-title">
-                Chat with your study buddy!
+                Chat with CampusPilot
               </h2>
               <div className="dash-card-head-actions">
                 <button

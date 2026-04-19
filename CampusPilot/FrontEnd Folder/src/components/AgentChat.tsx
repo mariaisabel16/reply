@@ -31,9 +31,8 @@ function introBubble(): ChatMessage {
     id: createId(),
     role: "assistant",
     content:
-      `Hallo — ich bin der Assistent von **${BRAND.name}**. Stell eine Frage zu Semesterdaten, z. B. **Welche Feiertage gibt es im Semester 2026s?** ` +
-      "Antworten kommen vom **QandA-Agent** (nach Login mit deiner TUM-/LRZ-Kennung). Ohne API-Key läuft ein **Demo-Modus** mit echten JSON-Daten; mit Ollama oder OpenAI siehe ENV.example dort. " +
-      "Dein Chat wird **in der Login-Session** auf dem Server gespeichert — mit **Neuer Chat** setzt du ihn zurück.",
+      `Hallo und willkommen! Ich bin dein Assistent von **${BRAND.name}** — ich helfe dir gern bei Fragen rund ums Studium und zur TUM, zum Beispiel zu Semesterterminen oder organisatorischen Themen. ` +
+      "Schreib einfach, worum es dir geht.",
   };
 }
 
@@ -150,8 +149,7 @@ export const AgentChat = forwardRef<AgentChatHandle, AgentChatProps>(function Ag
             <div>
               <h1 className="agent-chat-title">Frag den CampusPilot</h1>
               <p className="agent-chat-lede">
-                {BRAND.name}: organisatorische Infos zur TUM — verbunden mit dem QandA-Agent (FastAPI). Demo ohne
-                OpenAI, optional Ollama oder OpenAI-Key.
+                Ich helfe dir bei Fragen zu deinem Studium und zur TUM — stell einfach los.
               </p>
             </div>
           </div>
@@ -196,7 +194,7 @@ export const AgentChat = forwardRef<AgentChatHandle, AgentChatProps>(function Ag
               id="agent-input"
               className="agent-input"
               rows={2}
-              placeholder="z. B. Welche Feiertage gibt es im Semester 2026s?"
+              placeholder="Stell mir deine Frage …"
               value={draft}
               disabled={!sessionReady || isThinking}
               onChange={(e) => setDraft(e.target.value)}

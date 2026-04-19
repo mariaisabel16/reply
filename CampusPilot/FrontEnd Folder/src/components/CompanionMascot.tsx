@@ -2,9 +2,7 @@ import { BRAND } from "../branding";
 import { BrandMarkIcon } from "./BrandMarkIcon";
 import "./CompanionMascot.css";
 
-/**
- * Begleiter im Eck: gleiche Pilot-Markenfigur wie im Header (CampusPilot-Theme).
- */
+/** Kleiner Co-Pilot im Eck — gleiche Markenfigur wie im Header. */
 export function CompanionMascot() {
   return (
     <div

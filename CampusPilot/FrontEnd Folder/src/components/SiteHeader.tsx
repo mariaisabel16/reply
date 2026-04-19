@@ -59,6 +59,8 @@ export function SiteHeader({ username, onLogout, logoutBusy }: Props) {
         </div>
       </div>
 
+      <div className="site-header-spacer" aria-hidden />
+
       <nav className="site-header-actions" aria-label="Schnellzugriff">
         <a
           className="site-header-btn site-header-btn--ghost"
