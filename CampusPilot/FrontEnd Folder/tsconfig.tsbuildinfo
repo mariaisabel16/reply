@@ -1,1 +1,1 @@
-{"root":["./src/app.tsx","./src/main.tsx","./src/vite-env.d.ts","./src/components/agentchat.tsx"],"version":"5.8.3"}
+{"root":["./src/app.tsx","./src/agentapi.ts","./src/authapi.ts","./src/branding.ts","./src/main.tsx","./src/vite-env.d.ts","./src/components/agentchat.tsx","./src/components/brandmarkicon.tsx","./src/components/campuscrawlpanel.tsx","./src/components/companionmascot.tsx","./src/components/dashboardshell.tsx","./src/components/logingate.tsx","./src/components/messagebody.tsx","./src/components/siteheader.tsx"],"version":"5.8.3"}

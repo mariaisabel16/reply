@@ -119,7 +119,7 @@ export function CampusCrawlPanel() {
   const modulesData =
     data && isRecord(data) && isRecord(data.modules_data) ? data.modules_data : null;
 
-  // Grades from new scraper; fallback to curriculum modules for old cached data
+  // Modules from new scraper or curriculum fallback (grades not shown in the table)
   const gradeItems: unknown[] = modulesData && Array.isArray(modulesData.items)
     ? modulesData.items
     : curriculum && Array.isArray(curriculum.modules) ? curriculum.modules : [];
@@ -321,7 +321,7 @@ export function CampusCrawlPanel() {
           {gradeItems.length > 0 ? (
             <section className="crawl-section" aria-labelledby="crawl-modules-title">
               <h3 id="crawl-modules-title" className="crawl-section-title">
-                {modulesData ? "Noten" : "Module"} ({gradeItems.length})
+                Module ({gradeItems.length})
               </h3>
               <div className="crawl-modules-wrap">
                 <table className="crawl-mod-table">
@@ -329,7 +329,7 @@ export function CampusCrawlPanel() {
                     <tr>
                       {modulesData && <th>ID</th>}
                       <th>Titel</th>
-                      {modulesData ? <th>Note</th> : <th>Status</th>}
+                      {!modulesData && <th>Status</th>}
                       <th>Credits</th>
                       {modulesData && <th>Datum</th>}
                     </tr>
@@ -338,48 +338,42 @@ export function CampusCrawlPanel() {
                     {gradeItems.slice(0, 100).map((m: unknown, i: number) => {
                       if (!isRecord(m)) return null;
                       if (modulesData) {
-                        // New scraper data
                         const title = String(m.title ?? m.module_name ?? "—");
-                        const grade = m.grade != null ? Number(m.grade) : null;
-                        const gradeStr = grade != null ? grade.toFixed(1) : "—";
                         return (
                           <tr key={i}>
                             <td className="crawl-mod-table-id">{String(m.module_id ?? "—")}</td>
                             <td className="crawl-mod-table-title" title={title.length > 60 ? title : undefined}>
                               {title}
                             </td>
-                            <td className={`crawl-mod-table-grade ${grade != null ? (grade <= 1.5 ? "grade-excellent" : grade <= 2.5 ? "grade-good" : grade <= 3.5 ? "grade-ok" : "grade-pass") : ""}`}>
-                              {gradeStr}
-                            </td>
                             <td className="crawl-mod-table-credits">{m.credits != null ? String(m.credits) : "—"}</td>
                             <td className="crawl-mod-table-date">{m.date != null ? String(m.date) : "—"}</td>
                           </tr>
                         );
-                      } else {
-                        // Old data fallback
-                        const name = String(m.module_name ?? "—");
-                        const stLabel = String(m.status ?? "").trim();
-                        const positive = /positiv/i.test(stLabel);
-                        return (
-                          <tr key={i}>
-                            <td className="crawl-mod-table-title" title={name.length > 80 ? name : undefined}>
-                              {name}
-                            </td>
-                            <td>
-                              {stLabel && (
-                                <span className={positive ? "crawl-mod-badge" : "crawl-mod-badge crawl-mod-badge--neutral"}>
-                                  {stLabel}
-                                </span>
-                              )}
-                            </td>
-                            <td className="crawl-mod-table-credits">
-                              {m.credits_current != null && m.credits_total != null
-                                ? `${String(m.credits_current)} / ${String(m.credits_total)}`
-                                : "—"}
-                            </td>
-                          </tr>
-                        );
                       }
+                      const name = String(m.module_name ?? "—");
+                      const stLabel = String(m.status ?? "").trim();
+                      const positive = /positiv/i.test(stLabel);
+                      return (
+                        <tr key={i}>
+                          <td className="crawl-mod-table-title" title={name.length > 80 ? name : undefined}>
+                            {name}
+                          </td>
+                          <td>
+                            {stLabel && (
+                              <span
+                                className={positive ? "crawl-mod-badge" : "crawl-mod-badge crawl-mod-badge--neutral"}
+                              >
+                                {stLabel}
+                              </span>
+                            )}
+                          </td>
+                          <td className="crawl-mod-table-credits">
+                            {m.credits_current != null && m.credits_total != null
+                              ? `${String(m.credits_current)} / ${String(m.credits_total)}`
+                              : "—"}
+                          </td>
+                        </tr>
+                      );
                     })}
                   </tbody>
                 </table>

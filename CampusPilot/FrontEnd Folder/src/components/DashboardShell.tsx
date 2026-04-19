@@ -14,18 +14,15 @@ const MOCK_AGENTS = [
   { id: "strat", name: "Strategist", color: "#22c55e" },
 ];
 
-const MOCK_CONSOLE = [
-  "[18:16:56] AGENT_STRATEGIST: Sync complete — TUMonline session valid.",
-  "[18:17:02] ROOM_FINDER: No new room conflicts for SS 2026.",
-  "[18:17:41] TUTOR_ALPHA: Slides checksum OK (MA9712).",
-];
-
-const MOCK_LUNCH = [
-  { dish: "Almond curry with tofu", price: "3,50 €/100g" },
-  { dish: "Pasta bar — pesto", price: "4,20 €/100g" },
-  { dish: "Soup of the day", price: "2,80 €/100g" },
-  { dish: "Ice Cream", price: "0,50 €/100g" }
-
+const USEFUL_LINKS: { label: string; href: string }[] = [
+  { label: "Artemis", href: "https://artemis.tum.sexy/" },
+  { label: "TUM Hunger", href: "https://hunger.tum.sexy/" },
+  { label: "Reddit TUM", href: "https://reddit.tum.sexy/" },
+  { label: "Guessr Game TUM", href: "https://guessr.tum.sexy/" },
+  { label: "TUM Matching System", href: "https://matching-in.cit.tum.de/" },
+  { label: "TUM Zulip", href: "https://zulip.cit.tum.de/login/" },
+  { label: "TUM Studium", href: "https://www.tum.de/studium" },
+  { label: "Campus & Moodle (my)", href: "https://www.campus.tum.de/" },
 ];
 
 export function DashboardShell({ username }: Props) {
@@ -123,93 +120,27 @@ export function DashboardShell({ username }: Props) {
             </div>
           </section>
 
-          <section className="dash-card dash-goal" aria-labelledby="goal-title">
-            <h2 id="goal-title" className="dash-card-title dash-card-title--sm">
-              Goal input
+          <section className="dash-card dash-useful-links" aria-labelledby="useful-links-title">
+            <h2 id="useful-links-title" className="dash-card-title dash-card-title--sm">
+              Useful links
             </h2>
-            <textarea
-              className="dash-goal-input"
-              rows={5}
-              placeholder="Describe what you want the campus co-pilot to achieve…"
-              readOnly
-              defaultValue="Plan SS 2026 electives without timetable clashes."
-            />
-            <button type="button" className="dash-goal-btn">
-              Process goal →
-            </button>
-          </section>
-
-          <section className="dash-card dash-console" aria-labelledby="console-title">
-            <h2 id="console-title" className="dash-card-title dash-card-title--mono">
-              _ CONSOLE_SESSION
-            </h2>
-            <pre className="dash-console-pre">
-              {MOCK_CONSOLE.join("\n")}
-              {"\n"}
-            </pre>
+            <p className="dash-useful-links-lede">Kurzzugriffe — öffnen in einem neuen Tab.</p>
+            <ul className="dash-link-list">
+              {USEFUL_LINKS.map((item) => (
+                <li key={item.href}>
+                  <a href={item.href} target="_blank" rel="noreferrer noopener" className="dash-link-item">
+                    {item.label}
+                    <span className="dash-link-icon" aria-hidden>
+                      ↗
+                    </span>
+                  </a>
+                </li>
+              ))}
+            </ul>
           </section>
 
           <section className="dash-card dash-study dash-study--crawl" aria-labelledby="crawl-title">
             <CampusCrawlPanel />
-          </section>
-
-          <section className="dash-card dash-interop" aria-labelledby="interop-title">
-            <h2 id="interop-title" className="dash-card-title dash-card-title--sm">
-              Useful links
-            </h2>
-            <ul className="dash-link-list">
-              <li>
-                <a href="https://artemis.tum.sexy/" target="_blank" rel="noreferrer" className="dash-link-item">
-                  Artemis
-                  <span className="dash-link-icon">↗</span>
-                </a>
-              </li>
-              <li>
-                <a href="https://hunger.tum.sexy/" target="_blank" rel="noreferrer" className="dash-link-item">
-                  TUM Hunger
-                  <span className="dash-link-icon">↗</span>
-                </a>
-              </li>
-              <li>
-                <a href="https://reddit.tum.sexy/" target="_blank" rel="noreferrer" className="dash-link-item">
-                  Reddit TUM
-                  <span className="dash-link-icon">↗</span>
-                </a>
-              </li>
-              <li>
-                <a href="https://guessr.tum.sexy/" target="_blank" rel="noreferrer" className="dash-link-item">
-                  Guessr Game TUM
-                  <span className="dash-link-icon">↗</span>
-                </a>
-              </li>
-              <li>
-                <a href="https://matching-in.cit.tum.de/" target="_blank" rel="noreferrer" className="dash-link-item">
-                  TUM Matching System
-                  <span className="dash-link-icon">↗</span>
-                </a>
-              </li>
-              <li>
-                <a href="https://zulip.cit.tum.de/login/" target="_blank" rel="noreferrer" className="dash-link-item">
-                  TUM Zulip
-                  <span className="dash-link-icon">↗</span>
-                </a>
-              </li>
-            </ul>
-          </section>
-
-
-          <section className="dash-card dash-lunch" aria-labelledby="lunch-title">
-            <h2 id="lunch-title" className="dash-card-title dash-card-title--sm">
-              Mensa Food
-            </h2>
-            <ul className="dash-lunch-list">
-              {MOCK_LUNCH.map((row) => (
-                <li key={row.dish} className="dash-lunch-item">
-                  <span>{row.dish}</span>
-                  <span className="dash-lunch-price">{row.price}</span>
-                </li>
-              ))}
-            </ul>
           </section>
         </div>
       </div>
