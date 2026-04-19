@@ -3,11 +3,13 @@ TUMonline Scraper — demo.campus.tum.de
 Hackathon Reply Challenge 2025
 
 Scrapes in one run:
-  1. Curriculum page  → scrapped_data.json, study_plan.json, screenshots
-  2. Student card     → user.json, screenshot
+  1. Student card     → user.json, fachsemester, dynamic IDs
+  2. Curriculum page  → scrapped_data.json, study_plan.json, screenshots
   3. Grades/Modules   → modules.json, modules_passed.json
 
-All files saved to: CampusPilot/Agent/TemporaryUserInfoFiles/session_YYYYMMDD_HHMMSS/
+Works for ANY TUM account — IDs are discovered dynamically from the student card page.
+
+All files saved to: CampusPilot/TemporaryUserInfoFiles/session_YYYYMMDD_HHMMSS/
 """
 
 import asyncio
@@ -34,19 +36,21 @@ except ImportError:
     print("pip install rich")
     sys.exit(1)
 
-# ── URLs ──────────────────────────────────────
+# ── Static URLs (same for all users) ─────────
 BASE_URL         = "https://demo.campus.tum.de/DSYSTEM"
-HOME_URL         = f"{BASE_URL}/ee/ui/ca2/app/desktop/#/home?$ctx=lang=DE"
 LOGIN_URL        = f"{BASE_URL}/ee/ui/ca2/app/desktop/#/login"
-CURRICULUM_URL   = f"{BASE_URL}/ee/ui/ca2/app/desktop/#/slc.cm.cs/student/myStudies/1089084/myCurriculumElements/2917690?$ctx=design=ca;lang=DE&$filter=active-eq=true;currentlyValid-eq=true;partOfCurriculum-eq=true"
 STUDENT_CARD_URL = f"{BASE_URL}/wbstudkart.wbstudent"
-ACHIEVEMENTS_URL  = f"{BASE_URL}/ee/ui/ca2/app/desktop/#/slc.xm.ac/achievements?$ctx=lang=DE"
-STUDIENSTATUS_URL = f"{BASE_URL}/ee/ui/ca2/app/desktop/#pl/ui/$ctx/studienstatus.ht6ststatusDetail?$ctx=design=ca2;header=max;lang=de&pBasisStudNr=1089084&pEditable=FALSE&pOrgnr=&pStPersonNr=2326956"
-TIMEOUT          = 20000
+ACHIEVEMENTS_URL = f"{BASE_URL}/ee/ui/ca2/app/desktop/#/slc.xm.ac/achievements?$ctx=lang=DE"
+
+# ── Dynamic URLs (built after reading student card) ──
+CURRICULUM_URL    = ""
+STUDIENSTATUS_URL = ""
+
+TIMEOUT = 20000
 
 # ── Output directory ──────────────────────────
-# Script: CampusPilot/webcrawler/tumonline_scraper.py
-# Output: CampusPilot/Agent/TemporaryUserInfoFiles/session_*/
+# Script: CampusPilot/Webcrawler/tumonline_scraper.py
+# Output: CampusPilot/TemporaryUserInfoFiles/session_*/
 OUTPUT_DIR  = Path(__file__).resolve().parent.parent / "TemporaryUserInfoFiles"
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 SESSION_DIR: Path = OUTPUT_DIR  # overridden at runtime
@@ -101,7 +105,7 @@ async def automated_login(page: Page, username: str, password: str):
     await page.goto(LOGIN_URL, wait_until="domcontentloaded", timeout=TIMEOUT)
     await page.wait_for_timeout(2000)
 
-    async def click_first(selectors, label, timeout=10000):
+    async def click_first(selectors, timeout=10000):
         for sel in selectors:
             try:
                 loc = page.locator(sel).first
@@ -129,7 +133,7 @@ async def automated_login(page: Page, username: str, password: str):
                 continue
         return False
 
-    if not await click_first(['button:has-text("TUM Login")', 'text="TUM Login"'], "TUM Login"):
+    if not await click_first(['button:has-text("TUM Login")', 'text="TUM Login"']):
         raise RuntimeError("Could not find TUM Login button.")
     console.print("[green]✓[/green] TUM Login clicked")
 
@@ -137,17 +141,17 @@ async def automated_login(page: Page, username: str, password: str):
     await page.wait_for_timeout(2500)
 
     if not await fill_first(['input[name="j_username"]', 'input[name="username"]',
-                             'input[id="username"]', 'input[type="text"]'], username):
+                              'input[id="username"]', 'input[type="text"]'], username):
         raise RuntimeError("Username field not found.")
     console.print("[green]✓[/green] Username entered")
 
     if not await fill_first(['input[name="j_password"]', 'input[name="password"]',
-                             'input[id="password"]', 'input[type="password"]'], password):
+                              'input[id="password"]', 'input[type="password"]'], password):
         raise RuntimeError("Password field not found.")
     console.print("[green]✓[/green] Password entered")
 
     if not await click_first(['button:has-text("LOGIN")', 'button:has-text("Login")',
-                              'button[type="submit"]', 'input[type="submit"]'], "LOGIN"):
+                               'button[type="submit"]', 'input[type="submit"]']):
         raise RuntimeError("LOGIN button not found.")
 
     try:
@@ -169,180 +173,22 @@ async def automated_login(page: Page, username: str, password: str):
 
 
 # ─────────────────────────────────────────────
-# SECTION 0 — CURRENT SEMESTER
-# ─────────────────────────────────────────────
-async def scrape_semester(page: Page) -> dict:
-    """
-    Discovered from body text: "Studienbeitrag 2026 S" → current semester label
-    Discovered from Studienstatus page: "Anzahl Semester gemeldet:6" → semester number
-    Both are on the Mein Studium / curriculum page body.
-    """
-    console.print("[cyan]→[/cyan] Extracting semester info from curriculum page...")
-    await page.goto(CURRICULUM_URL, wait_until="domcontentloaded", timeout=TIMEOUT)
-    await page.wait_for_timeout(4000)
-
-    body = await get_body_text(page)
-    norm = normalize_for_regex(body)
-
-    result = {
-        "current_semester_label": None,   # e.g. "2026 S"
-        "current_semester_number": None,  # e.g. 6  (Fachsemester)
-        "study_program": None,            # e.g. "Informatik [20211], Bachelor of Science"
-        "total_semesters_enrolled": None, # from Studienstatus: "Anzahl Semester gemeldet:6"
-    }
-
-    # 1. Semester label from "Studienbeitrag 2026 S" or "Vorgemerkte Lehrveranstaltungen 2026 S"
-    m = re.search(r"Studienbeitrag\s+(\d{4}\s*[SW])", norm)
-    if not m:
-        m = re.search(r"Vorgemerkte Lehrveranstaltungen\s+(\d{4}\s*[SW])", norm)
-    if m:
-        result["current_semester_label"] = m.group(1).strip()
-
-    # 2. Study program from "Informatik [20211], Bachelor of Science (1630 17 030)"
-    m2 = re.search(r"(Informatik\s*\[.*?\],\s*Bachelor[^(\n]+)", norm)
-    if m2:
-        result["study_program"] = m2.group(1).strip()
-
-    # 3. Navigate to Studienstatus page to get "Anzahl Semester gemeldet:X"
-    #    and current Fachsemester (highest number in table)
-    try:
-        await page.goto(STUDIENSTATUS_URL, wait_until="domcontentloaded", timeout=TIMEOUT)
-        await page.wait_for_timeout(3000)
-        status_body = await get_body_text(page)
-
-        # "Anzahl Semester gemeldet:6"
-        m3 = re.search(r"Anzahl Semester gemeldet\s*[:\s]\s*(\d+)", status_body)
-        if m3:
-            result["total_semesters_enrolled"] = int(m3.group(1))
-            result["current_semester_number"]  = int(m3.group(1))
-
-        # Also parse the table for the current row (26S = gemeldet, highest Fachsemester)
-        # Format: "26S  gemeldet  01.04.2026  6 Fachsemester - Fach 1"
-        fach_matches = re.findall(r"(\d+[SW])\s+gemeldet\s+[\d.]+\s+(\d+)\s+Fachsemester", status_body)
-        if fach_matches:
-            # Take the one with the highest Fachsemester number
-            latest = max(fach_matches, key=lambda x: int(x[1]))
-            result["current_semester_number"] = int(latest[1])
-            result["current_semester_code"]   = latest[0]  # e.g. "26S"
-
-    except Exception as e:
-        console.print(f"[yellow]⚠[/yellow] Could not fetch Studienstatus: {e}")
-
-    console.print(f"[green]✓[/green] Semester: {result['current_semester_label']} "
-                  f"(Fachsemester {result['current_semester_number']})")
-    return result
-
-
-
-# ─────────────────────────────────────────────
-# SECTION 1 — CURRICULUM
-# ─────────────────────────────────────────────
-def extract_semester(text):
-    text = normalize_for_regex(text)
-    for pat in [r"(Wintersemester\s*\d{4}/\d{2,4})", r"(Sommersemester\s*\d{4})",
-                r"(WS\s*\d{4}/\d{2,4})", r"(SS\s*\d{4})"]:
-        m = re.search(pat, text, re.IGNORECASE)
-        if m:
-            return m.group(1).strip()
-    return None
-
-
-def extract_matrikelnummer(text):
-    text = normalize_for_regex(text)
-    m = re.search(r"\b\d{7,8}\b", text)
-    return m.group(0) if m else None
-
-
-def extract_name(text):
-    text = clean_text(text)
-    blacklist = {"DE", "EN", "Mein Studium", "Studienstatus", "Planung",
-                 "Aktivität", "Semesterplan", "Module", "Prüfungen"}
-    for line in [l.strip() for l in text.splitlines() if l.strip()][:30]:
-        if line in blacklist or re.search(r"\d", line):
-            continue
-        if len(line.split()) >= 2 and len(line) < 80:
-            if not any(x in line.lower() for x in ["studium", "credits", "durchschnitt"]):
-                return line
-    return None
-
-
-def extract_ects(text):
-    text = normalize_for_regex(text)
-    for pat in [r"(\d+(?:[.,]\d+)?)\s*/\s*(\d+(?:[.,]\d+)?)\s*Credits\s*erreicht",
-                r"(\d+(?:[.,]\d+)?)\s*/\s*(\d+(?:[.,]\d+)?)\s*Credits"]:
-        m = re.search(pat, text, re.IGNORECASE)
-        if m:
-            return {"ects_current": m.group(1).replace(",", "."),
-                    "ects_total":   m.group(2).replace(",", ".")}
-    return None
-
-
-def extract_average(text):
-    text = normalize_for_regex(text)
-    for pat in [r"Vorläufige\s+Durchschnittsnote\s*(\d+(?:[.,]\d+)?)",
-                r"Durchschnittsnote\s*(\d+(?:[.,]\d+)?)"]:
-        m = re.search(pat, text, re.IGNORECASE)
-        if m:
-            return m.group(1).replace(",", ".")
-    return None
-
-
-async def scrape_curriculum(page: Page) -> dict:
-    console.print("[cyan]→[/cyan] Opening curriculum page...")
-    await page.goto(CURRICULUM_URL, wait_until="domcontentloaded", timeout=TIMEOUT)
-    await page.wait_for_timeout(5000)
-
-    await page.screenshot(path=str(SESSION_DIR / "tum_curriculum.png"), full_page=True)
-    console.print("[green]✓[/green] Screenshot: tum_curriculum.png")
-
-    text = await get_body_text(page)
-    save_text("curriculum_body.txt", text)
-    norm = normalize_for_regex(text)
-
-    # Extract ECTS from widget
-    ects = None
-    m = re.search(r"(\d+(?:[.,]\d+)?)\s*/\s*(\d+(?:[.,]\d+)?)\s*Credits\s*erreicht", norm, re.IGNORECASE)
-    if m:
-        ects = {"ects_current": m.group(1).replace(",", "."), "ects_total": m.group(2).replace(",", ".")}
-    if not ects:
-        ects = extract_ects(norm)
-
-    avg = None
-    m2 = re.search(r"Vorläufige\s+Durchschnittsnote\s*(\d+(?:[.,]\d+)?)", norm, re.IGNORECASE)
-    if m2:
-        avg = m2.group(1).replace(",", ".")
-
-    # Extract module tiles with POSITIV pattern
-    modules = []
-    seen = set()
-    for mo in re.finditer(r"([^\n]+?)\s+POSITIV\s+(\d+(?:[.,]\d+)?)\s*/\s*(\d+(?:[.,]\d+)?)\s*Credits",
-                          norm, re.IGNORECASE):
-        name = clean_text(mo.group(1))
-        key = (name, mo.group(2), mo.group(3))
-        if name and key not in seen:
-            seen.add(key)
-            modules.append({
-                "module_name":     name,
-                "status":          "POSITIV",
-                "credits_current": mo.group(2).replace(",", "."),
-                "credits_total":   mo.group(3).replace(",", "."),
-            })
-
-    return {
-        "name":           extract_name(text),
-        "semester":       extract_semester(text),
-        "matrikelnummer": extract_matrikelnummer(text),
-        "ects":           ects,
-        "average":        avg,
-        "modules":        modules,
-    }
-
-
-# ─────────────────────────────────────────────
-# SECTION 2 — STUDENT CARD
+# SECTION 1 — STUDENT CARD (+ dynamic ID discovery)
 # ─────────────────────────────────────────────
 async def scrape_student_card(page: Page) -> dict:
-    console.print("[cyan]→[/cyan] Opening Studierendenkartei...")
+    """
+    Scrapes the student card AND discovers dynamic IDs needed for other URLs.
+
+    Observed across 3 users:
+      myStudies ID  = pBasisStudNr  (same number, e.g. 1089084)
+      curriculumElements ID          (varies per user, e.g. 2917690)
+      pStPersonNr                    (varies per user, e.g. 2326956)
+
+    The student card page contains links with all these IDs.
+    """
+    global CURRICULUM_URL, STUDIENSTATUS_URL
+
+    console.print("[cyan]→[/cyan] Opening Studierendenkartei (+ ID discovery)...")
     await page.goto(STUDENT_CARD_URL, wait_until="domcontentloaded", timeout=TIMEOUT)
     await page.wait_for_timeout(5000)
 
@@ -353,11 +199,18 @@ async def scrape_student_card(page: Page) -> dict:
     save_text("student_card_body.txt", text)
 
     result = {
-        "matrikelnummer": None,
-        "basisinformationen": {},
+        "matrikelnummer":    None,
+        "full_name":         None,
+        "vorname":           None,
+        "nachname":          None,
+        "fachsemester":      None,
+        "studien_id":        None,
+        "spo_version":       None,
+        "basisinformationen":    {},
         "weitere_informationen": {},
     }
 
+    # ── Extract Basisinformationen table ─────
     try:
         tables = page.locator("table")
         count = await tables.count()
@@ -389,28 +242,200 @@ async def scrape_student_card(page: Page) -> dict:
     except Exception:
         pass
 
-    result["matrikelnummer"] = (result["basisinformationen"].get("Matrikelnummer")
-                                or extract_matrikelnummer(text))
+    # Extract fields from body text.
+    # Line 1 has the display name: "Maria Sagastume Giron"
+    # Fields have \t suffix and value is 2 lines later:
+    #   line N:   "Matrikelnummer\t"
+    #   line N+2: "03781850"
+    lines = text.splitlines()
+
+    # Full name is on line index 1 (second line of body)
+    if len(lines) > 1:
+        candidate = lines[1].strip()
+        if candidate and not any(x in candidate for x in ["Campus", "Studierenden", "TUM", "http"]):
+            result["full_name"] = candidate
+
+    for i, line in enumerate(lines):
+        stripped = line.strip().rstrip("\t").strip()
+        if stripped == "Matrikelnummer" and i + 2 < len(lines):
+            val = lines[i+2].strip()
+            if re.match(r"\d{7,8}", val):
+                result["matrikelnummer"] = val
+        elif stripped == "Familien- oder Nachname" and i + 2 < len(lines):
+            result["nachname"] = lines[i+2].strip()
+        elif stripped == "Vorname" and i + 2 < len(lines):
+            val = lines[i+2].strip()
+            if val and not any(x in val for x in ["Bitte", "Männlich", "Weiblich", "Divers"]):
+                result["vorname"] = val
+
+    if not result["matrikelnummer"]:
+        m = re.search(r"\b(\d{7,8})\b", text)
+        if m:
+            result["matrikelnummer"] = m.group(1)
+
+    # ── Extract Fachsemester from study status table ──
+    # Body text structure (each value on its own line):
+    #   1630 17 030     20211   01.10.2023 -
+    #   6 /          <- Fachsemester on its own line after Studien-ID line
+    lines = text.splitlines()
+    for i, line in enumerate(lines):
+        stripped = line.strip()
+        # Find the Studien-ID line (format: "1630 17 030  20211  ...")
+        sid_match = re.match(r"(\d{4}\s\d{2}\s\d{3})", stripped)
+        if sid_match:
+            result["studien_id"] = sid_match.group(1)
+            spo = re.search(r"\b(\d{5})\b", stripped)
+            if spo:
+                result["spo_version"] = spo.group(1)
+            # Fachsemester is on one of the next lines as "6 /"
+            for data_line in lines[i+1:i+6]:
+                m = re.match(r"^\s*(\d+)\s*/", data_line)
+                if m and int(m.group(1)) <= 30:
+                    result["fachsemester"] = int(m.group(1))
+                    break
+            break
+
+    if result["fachsemester"]:
+        console.print(f"[green]✓[/green] Fachsemester: {result['fachsemester']}")
+    else:
+        console.print("[yellow]⚠[/yellow] Could not extract Fachsemester")
+
+    # ── Discover dynamic IDs from page links ──
+    # Links on this page contain myStudies/STUDY_ID/myCurriculumElements/ELEM_ID
+    # and pBasisStudNr=STUDY_ID&pStPersonNr=PERSON_ID
+    study_id = None
+    elem_id  = None
+    person_id = None
+    basis_nr  = None
+
+    all_hrefs = await page.evaluate("""
+        () => [...document.querySelectorAll('a')].map(a => a.href || a.getAttribute('href') || '')
+    """)
+
+    for href in all_hrefs:
+        if not href:
+            continue
+        if not study_id:
+            m = re.search(r"myStudies/(\d+)/myCurriculumElements/(\d+)", href)
+            if m:
+                study_id = m.group(1)
+                elem_id  = m.group(2)
+        if not person_id:
+            pm = re.search(r"pStPersonNr=(\d+)", href)
+            bm = re.search(r"pBasisStudNr=(\d+)", href)
+            if pm: person_id = pm.group(1)
+            if bm: basis_nr  = bm.group(1)
+        if study_id and person_id:
+            break
+
+    # Build dynamic URLs
+    if study_id and elem_id:
+        CURRICULUM_URL = (
+            f"{BASE_URL}/ee/ui/ca2/app/desktop/#/slc.cm.cs/student/myStudies/"
+            f"{study_id}/myCurriculumElements/{elem_id}"
+            f"?$ctx=design=ca;lang=DE&$filter=active-eq=true;currentlyValid-eq=true;partOfCurriculum-eq=true"
+        )
+        console.print(f"[green]✓[/green] Curriculum URL built (study={study_id}, elem={elem_id})")
+    else:
+        CURRICULUM_URL = ""
+        console.print("[yellow]⚠[/yellow] Could not find study IDs — curriculum will be skipped")
+
+    if person_id and basis_nr:
+        STUDIENSTATUS_URL = (
+            f"{BASE_URL}/studienstatus.ht6ststatusDetail"
+            f"?pBasisStudNr={basis_nr}&pEditable=FALSE&pOrgnr=&pStPersonNr={person_id}"
+        )
+        console.print(f"[green]✓[/green] Studienstatus URL built (person={person_id})")
+    else:
+        STUDIENSTATUS_URL = ""
+        console.print("[yellow]⚠[/yellow] Could not find person IDs — Studienstatus will be skipped")
+
+    result["study_id"]  = study_id
+    result["person_id"] = person_id
+
     return result
+
+
+# ─────────────────────────────────────────────
+# SECTION 2 — CURRICULUM
+# ─────────────────────────────────────────────
+def extract_matrikelnummer(text):
+    m = re.search(r"\b\d{7,8}\b", normalize_for_regex(text))
+    return m.group(0) if m else None
+
+
+def extract_name(text):
+    text = clean_text(text)
+    blacklist = {"DE", "EN", "Mein Studium", "Studienstatus", "Planung",
+                 "Aktivität", "Semesterplan", "Module", "Prüfungen"}
+    for line in [l.strip() for l in text.splitlines() if l.strip()][:30]:
+        if line in blacklist or re.search(r"\d", line):
+            continue
+        if len(line.split()) >= 2 and len(line) < 80:
+            if not any(x in line.lower() for x in ["studium", "credits", "durchschnitt"]):
+                return line
+    return None
+
+
+async def scrape_curriculum(page: Page) -> dict:
+    if not CURRICULUM_URL:
+        console.print("[yellow]⚠[/yellow] Curriculum URL not available — skipping")
+        return {"name": None, "matrikelnummer": None, "ects": None, "average": None, "modules": []}
+
+    console.print("[cyan]→[/cyan] Opening curriculum page...")
+    await page.goto(CURRICULUM_URL, wait_until="domcontentloaded", timeout=TIMEOUT)
+    await page.wait_for_timeout(5000)
+
+    await page.screenshot(path=str(SESSION_DIR / "tum_curriculum.png"), full_page=True)
+    console.print("[green]✓[/green] Screenshot: tum_curriculum.png")
+
+    text = await get_body_text(page)
+    save_text("curriculum_body.txt", text)
+    norm = normalize_for_regex(text)
+
+    # ECTS
+    ects = None
+    m = re.search(r"(\d+(?:[.,]\d+)?)\s*/\s*(\d+(?:[.,]\d+)?)\s*Credits\s*erreicht", norm, re.IGNORECASE)
+    if m:
+        ects = {"ects_current": m.group(1).replace(",", "."), "ects_total": m.group(2).replace(",", ".")}
+
+    # Grade average
+    avg = None
+    m2 = re.search(r"Vorläufige\s+Durchschnittsnote\s*(\d+(?:[.,]\d+)?)", norm, re.IGNORECASE)
+    if m2:
+        avg = m2.group(1).replace(",", ".")
+
+    # Module tiles
+    modules = []
+    seen = set()
+    for mo in re.finditer(
+        r"([^\n]+?)\s+POSITIV\s+(\d+(?:[.,]\d+)?)\s*/\s*(\d+(?:[.,]\d+)?)\s*Credits",
+        norm, re.IGNORECASE
+    ):
+        name = clean_text(mo.group(1))
+        key = (name, mo.group(2), mo.group(3))
+        if name and key not in seen:
+            seen.add(key)
+            modules.append({
+                "module_name":     name,
+                "status":          "POSITIV",
+                "credits_current": mo.group(2).replace(",", "."),
+                "credits_total":   mo.group(3).replace(",", "."),
+            })
+
+    return {
+        "name":           extract_name(text),
+        "matrikelnummer": extract_matrikelnummer(text),
+        "ects":           ects,
+        "average":        avg,
+        "modules":        modules,
+    }
 
 
 # ─────────────────────────────────────────────
 # SECTION 3 — GRADES / ACHIEVEMENTS
 # ─────────────────────────────────────────────
 async def scrape_grades(page: Page) -> list:
-    """
-    Parse all modules from /slc.xm.ac/achievements DOM body.
-
-    Body structure per module:
-      Note
-      3,7
-      3,7 - ausreichend
-      PRÜFUNG
-      IN0019Numerisches Programmieren     ← ID glued to title
-      6 ECTS-Credits | 27.02.2026
-      Informatik
-      Letztgültige Leistung
-    """
     console.print("[cyan]→[/cyan] Navigating to Meine Leistungen (grades)...")
     await page.goto(ACHIEVEMENTS_URL, wait_until="domcontentloaded", timeout=TIMEOUT)
     await page.wait_for_timeout(4000)
@@ -426,11 +451,9 @@ async def scrape_grades(page: Page) -> list:
         if lines[i] != "Note":
             i += 1
             continue
-
         if i + 1 >= len(lines):
             break
 
-        # Grade value e.g. "3,7"
         grade_match = re.match(r'^([\d][,\.]\d{1,2})$', lines[i + 1])
         if not grade_match:
             i += 1
@@ -453,12 +476,10 @@ async def scrape_grades(page: Page) -> list:
             i = j
             continue
 
-        # Module ID + title — ID glued to title with no space
-        id_title = lines[j]
-        # Try with space first: "IN0019 Numerisches..."
-        id_match = re.match(r'^([A-Z]{2,4}\d{4,7}[A-Z]{0,2}\d{0,2})\s+(.*)', id_title)
+        # Module ID + title
+        id_title  = lines[j]
+        id_match  = re.match(r'^([A-Z]{2,4}\d{4,7}[A-Z]{0,2}\d{0,2})\s+(.*)', id_title)
         if not id_match:
-            # Fallback: split before first uppercase letter of title
             id_match = re.match(r'^([A-Z]{2,4}\d{4,7}[A-Z]{0,2}\d{0,2})([A-ZÄÖÜ].*)', id_title)
         if not id_match:
             i += 1
@@ -468,7 +489,7 @@ async def scrape_grades(page: Page) -> list:
         title     = id_match.group(2).strip()
         j += 1
 
-        # ECTS + date "6 ECTS-Credits | 27.02.2026"
+        # ECTS + date
         credits, date = None, None
         if j < len(lines):
             em = re.match(r'(\d+)\s*ECTS-Credits\s*\|\s*([\d.]+)', lines[j])
@@ -489,7 +510,7 @@ async def scrape_grades(page: Page) -> list:
             status = lines[j]
             j += 1
 
-        is_final   = "Letztgültig" in status
+        is_final    = "Letztgültig" in status
         in_progress = "Bearbeitung" in status
 
         modules.append({
@@ -505,7 +526,6 @@ async def scrape_grades(page: Page) -> list:
             "passed":      is_final and grade <= 4.0,
             "in_progress": in_progress,
         })
-
         i = j
 
     console.print(f"[green]✓[/green] Found {len(modules)} modules in grades")
@@ -515,7 +535,7 @@ async def scrape_grades(page: Page) -> list:
 # ─────────────────────────────────────────────
 # DISPLAY
 # ─────────────────────────────────────────────
-def display_summary(curriculum: dict, student: dict, modules: list, semester: dict = None):
+def display_summary(curriculum: dict, student: dict, modules: list):
     console.print()
     console.print(Rule("[bold green]TUMonline Demo — Full Summary[/bold green]"))
 
@@ -524,20 +544,15 @@ def display_summary(curriculum: dict, student: dict, modules: list, semester: di
     total_ects = sum(m["credits"] or 0 for m in passed)
 
     console.print(Panel(
-        f"[bold]Name:[/bold]              {curriculum.get('name') or 'N/A'}\n"
+        f"[bold]Name:[/bold]              {student.get('full_name') or curriculum.get('name') or 'N/A'}\n"
         f"[bold]Matrikelnummer:[/bold]    {student.get('matrikelnummer') or 'N/A'}\n"
-        f"[bold]Current Semester:[/bold]  {(semester or {}).get('current_semester_label','N/A')} (Fachsemester {(semester or {}).get('current_semester_number','?')})\n"
-        f"[bold]Semester code:[/bold]     {(semester or {}).get('current_semester_code','N/A')}\n"
-        f"[bold]ECTS (curriculum):[/bold] "
-        f"{(curriculum.get('ects') or {}).get('ects_current','?')} / "
-        f"{(curriculum.get('ects') or {}).get('ects_total','?')}\n"
-        f"[bold]Grade average:[/bold]     {curriculum.get('average') or 'N/A'}\n"
+        f"[bold]Fachsemester:[/bold]      {student.get('fachsemester') or 'N/A'}\n"
+        f"[bold]Studien-ID:[/bold]        {student.get('studien_id') or 'N/A'}\n"
         f"[bold]Passed modules:[/bold]    {len(passed)}  ({total_ects} ECTS)\n"
         f"[bold]In progress:[/bold]       {len(in_prog)}",
         title="Summary", border_style="cyan"
     ))
 
-    # Passed grades table
     if passed:
         t = Table(
             title=f"✓ Passed Modules ({len(passed)}) — grade ≤ 4.0 & Letztgültig",
@@ -580,7 +595,7 @@ async def main():
 
     console.print(Panel.fit(
         "[bold green]TUMonline Scraper[/bold green]\n"
-        "[dim]Curriculum + Student Card + Grades · Reply Hackathon 2025[/dim]\n"
+        "[dim]Student Card + Curriculum + Grades · Reply Hackathon 2025[/dim]\n"
         "[yellow]Environment: demo.campus.tum.de[/yellow]",
         border_style="green"
     ))
@@ -588,7 +603,6 @@ async def main():
     username = console.input("[bold]TUM username:[/bold] ").strip()
     password = getpass.getpass("Password: ")
 
-    # Create session folder
     SESSION_DIR = OUTPUT_DIR / f"session_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     SESSION_DIR.mkdir(parents=True, exist_ok=True)
     console.print(f"[dim]Session folder: {SESSION_DIR}[/dim]\n")
@@ -605,7 +619,6 @@ async def main():
             timezone_id="Europe/Berlin",
         )).new_page()
 
-        # ── Login ─────────────────────────────────
         try:
             await automated_login(page, username, password)
         except Exception as e:
@@ -613,24 +626,20 @@ async def main():
             await browser.close()
             return
 
-        # ── Semester ─────────────────────────────────
-        semester = await scrape_semester(page)
-
-        # ── Curriculum ────────────────────────────
-        curriculum = await scrape_curriculum(page)
-        console.print("[green]✓[/green] Curriculum data extracted.")
-
-        # ── Student card ──────────────────────────
+        # Student card FIRST — discovers dynamic IDs for other pages
         student = await scrape_student_card(page)
         console.print("[green]✓[/green] Student card data extracted.")
 
-        # ── Grades ────────────────────────────────
+        # Curriculum — uses CURRICULUM_URL built by scrape_student_card
+        curriculum = await scrape_curriculum(page)
+        console.print("[green]✓[/green] Curriculum data extracted.")
+
+        # Grades
         modules = await scrape_grades(page)
         console.print("[green]✓[/green] Grades extracted.")
 
         await browser.close()
 
-    # ── Save all files ────────────────────────
     console.print()
     console.print(Rule("[bold cyan]Saving files[/bold cyan]"))
 
@@ -644,14 +653,11 @@ async def main():
     })
     save_json("user.json", student)
     save_json("study_plan.json", {
-        "semester":               curriculum.get("semester"),
-        "current_semester_label":  semester.get("current_semester_label"),
-        "current_semester_number": semester.get("current_semester_number"),
-        "current_semester_code":   semester.get("current_semester_code"),
-        "total_semesters_enrolled":semester.get("total_semesters_enrolled"),
-        "study_program":           semester.get("study_program"),
-        "ects":                    curriculum.get("ects"),
-        "average":                 curriculum.get("average"),
+        "fachsemester": student.get("fachsemester"),
+        "studien_id":   student.get("studien_id"),
+        "spo_version":  student.get("spo_version"),
+        "ects":         curriculum.get("ects"),
+        "average":      curriculum.get("average"),
     })
     save_json("modules.json", {
         "scraped_at":  datetime.now().isoformat(),
@@ -668,8 +674,7 @@ async def main():
         "modules":    passed,
     })
 
-    # ── Display ───────────────────────────────
-    display_summary(curriculum, student, modules, semester)
+    display_summary(curriculum, student, modules)
     console.print(f"\n[bold]All files saved to:[/bold] {SESSION_DIR}")
 
 
