@@ -238,7 +238,7 @@ async def _run_post_login_crawl_async_impl(user_id: int, username: str, password
         sys.path.insert(0, webcrawler_str)
 
     try:
-        import session_manager as sm  # type: ignore[import-untyped]
+        import tumonline_scraper as ts  # type: ignore[import-untyped]
     except ImportError as e:
         _state[user_id] = {
             "status": "error",
@@ -249,14 +249,11 @@ async def _run_post_login_crawl_async_impl(user_id: int, username: str, password
         _save_snapshot_to_db(user_id, "error", _state[user_id]["message"], None, None)
         return
 
-    session_file = session_file_for_user(user_id)
     try:
-        result = await sm.scrape_tumonline(
+        result = await ts.scrape_all_async(
             username=username,
             password=password,
             headless=True,
-            session_file=session_file,
-            save_debug_screenshots=False,
         )
         compact = _compact_crawl_payload(result)
         scraped_at = compact.get("scraped_at")

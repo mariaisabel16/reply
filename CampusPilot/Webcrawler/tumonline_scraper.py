@@ -678,5 +678,47 @@ async def main():
     console.print(f"\n[bold]All files saved to:[/bold] {SESSION_DIR}")
 
 
+async def scrape_all_async(username: str, password: str, headless: bool = True) -> dict:
+    """Programmatic entry for the API backend — no interactive prompts."""
+    global SESSION_DIR
+    import tempfile
+    SESSION_DIR = Path(tempfile.mkdtemp(prefix="campuspilot_"))
+
+    async with async_playwright() as pw:
+        browser = await pw.chromium.launch(
+            headless=headless,
+            slow_mo=50,
+            args=["--disable-features=AutofillServerCommunication,PasswordManagerEnabled",
+                  "--disable-save-password-bubble"],
+        )
+        page = await (await browser.new_context(
+            viewport={"width": 1440, "height": 950},
+            locale="de-DE",
+            timezone_id="Europe/Berlin",
+        )).new_page()
+        try:
+            await automated_login(page, username, password)
+            student = await scrape_student_card(page)
+            curriculum = await scrape_curriculum(page)
+            modules = await scrape_grades(page)
+        finally:
+            await browser.close()
+
+    passed = [m for m in modules if m.get("passed")]
+    return {
+        "scraped_at":        datetime.now().isoformat(),
+        "environment":       "demo.campus.tum.de",
+        "student_card_data": student,
+        "curriculum_data":   curriculum,
+        "modules_data": {
+            "total":       len(modules),
+            "passed":      len(passed),
+            "in_progress": len([m for m in modules if m.get("in_progress")]),
+            "total_ects":  sum(m.get("credits") or 0 for m in passed),
+            "items":       modules,
+        },
+    }
+
+
 if __name__ == "__main__":
     asyncio.run(main())
