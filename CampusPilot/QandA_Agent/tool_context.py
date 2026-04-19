@@ -18,3 +18,8 @@ tum_tool_credentials: ContextVar[TumPortalCredentials | None] = ContextVar(
     "tum_tool_credentials",
     default=None,
 )
+
+current_auth_user_id: ContextVar[int | None] = ContextVar(
+    "current_auth_user_id",
+    default=None,
+)

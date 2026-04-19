@@ -6,7 +6,11 @@ Run from this directory (CampusPilot/QandA_Agent):
   .venv\\Scripts\\activate
   python -m pip install -r requirements.txt
   copy ENV.example .env   # optional: BEDROCK_MODEL_ID and AWS creds, or OPENAI_API_KEY, or OLLAMA_BASE_URL; else demo
-  python -m uvicorn main:app --reload --port 8010
+  python -m uvicorn main:app --host 127.0.0.1 --port 8010
+
+Windows + Playwright (TUMonline-Chat-Tools, Crawl): **nicht** ``--reload`` verwenden — uvicorn nutzt
+dann einen SelectorEventLoop, der **keine** Browser-Subprozesse starten kann (NotImplementedError).
+Für Auto-Reload nur auf Linux/macOS oder ohne Playwright testen.
 
 See SETUP.txt for Windows / pip issues.
 """
@@ -14,7 +18,9 @@ See SETUP.txt for Windows / pip issues.
 from __future__ import annotations
 
 import asyncio
+import logging
 import sys
+from contextlib import asynccontextmanager
 
 # Playwright spawns a subprocess; on Windows SelectorEventLoop raises NotImplementedError.
 if sys.platform == "win32":
@@ -39,9 +45,27 @@ from campuspilot_auth import (
     require_auth_user,
 )
 from config import settings
-from tool_context import TumPortalCredentials, tum_tool_credentials
+from tool_context import TumPortalCredentials, current_auth_user_id, tum_tool_credentials
+from tum_course_session import close_tum_registration_session
 
-app = FastAPI(title="TUM CampusPilot QandA", version="0.1.0")
+_log = logging.getLogger("uvicorn.error")
+
+
+@asynccontextmanager
+async def _lifespan(app: FastAPI):
+    if sys.platform == "win32":
+        loop = asyncio.get_running_loop()
+        if "Selector" in type(loop).__name__:
+            _log.warning(
+                "CampusPilot (Windows): SelectorEventLoop aktiv (typisch mit uvicorn --reload). "
+                "Playwright/Chromium startet dann nicht (NotImplementedError bei Subprocess). "
+                "Für TUMonline-Chat-Tools und Crawl ohne --reload starten, z.B.: "
+                "python -m uvicorn main:app --host 127.0.0.1 --port 8010 — sonst sind nur NAT/Chat ohne Browser ok."
+            )
+    yield
+
+
+app = FastAPI(title="TUM CampusPilot QandA", version="0.1.0", lifespan=_lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -111,9 +135,10 @@ async def chat(
 ) -> ChatResponse:
     messages: list[dict[str, Any]] = [{"role": m.role, "content": m.content} for m in req.history]
     messages.append({"role": "user", "content": req.message})
-    token = tum_tool_credentials.set(
+    cred_token = tum_tool_credentials.set(
         TumPortalCredentials(tum_username=user.tum_username, tum_password=user.password_plain)
     )
+    uid_token = current_auth_user_id.set(user.user_id)
     try:
         reply, dbg = await run_chat_turn(messages)
     except RuntimeError as e:
@@ -121,5 +146,7 @@ async def chat(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
     finally:
-        tum_tool_credentials.reset(token)
+        await close_tum_registration_session()
+        current_auth_user_id.reset(uid_token)
+        tum_tool_credentials.reset(cred_token)
     return ChatResponse(reply=reply, debug_tools=dbg)

@@ -24,7 +24,12 @@ Optional (only if you really want a newer pip *inside the venv*):
 
 Then run (works in Git Bash / WSL / cmd; avoids "uvicorn: command not found"):
 
-  python -m uvicorn main:app --reload --port 8010
+  python -m uvicorn main:app --host 127.0.0.1 --port 8010
+
+Windows + Playwright (TUMonline-Crawl, Chat-Tools `tumonline_*`): do **not** use `--reload`.
+With reload, uvicorn uses a SelectorEventLoop that cannot spawn the Playwright browser
+subprocess → NotImplementedError in the server log. Use the command above without `--reload`,
+or use reload only on Linux/macOS for this stack.
 
 This project does not require python-dotenv; .env is loaded by config.py.
 

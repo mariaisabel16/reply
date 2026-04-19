@@ -52,6 +52,9 @@ class Settings:
     use_fixture_if_nat_fails: bool
     auth_dev_fallback_secret: str
     cors_allow_origin_regex: str
+    # TUMonline chat registration (see ENV.example): safe defaults — no write actions unless enabled.
+    tum_registration_executes_writes: bool
+    tum_registration_allow_non_demo_host: bool
 
 
 def load_settings() -> Settings:
@@ -81,6 +84,14 @@ def load_settings() -> Settings:
             r"^http://(localhost|127\.0\.0\.1)(:\d+)?$",
         ).strip()
         or r"^http://(localhost|127\.0\.0\.1)(:\d+)?$",
+        tum_registration_executes_writes=_truthy(
+            os.environ.get("CAMPUSPILOT_TUM_REGISTRATION_EXECUTES_WRITES"),
+            default=False,
+        ),
+        tum_registration_allow_non_demo_host=_truthy(
+            os.environ.get("CAMPUSPILOT_TUM_REGISTRATION_ALLOW_NON_DEMO_HOST"),
+            default=False,
+        ),
     )
 
 

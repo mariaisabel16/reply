@@ -178,6 +178,22 @@ def get_crawl_status_for_user(user_id: int) -> dict[str, Any]:
     }
 
 
+def get_stored_crawl_payload(user_id: int) -> dict[str, Any] | None:
+    """
+    Last successful crawl JSON for this user (same object as in `CrawlStatusResponse.data`).
+
+    Returns None if there is no snapshot, crawl failed, or data is missing. Prefer this over
+    reading SQLite directly so you stay compatible with in-memory `running` / DB layout.
+
+    Typical keys: curriculum_data, student_card_data, scraped_at, home_url, etc.
+    """
+    d = get_status_dict(user_id)
+    if d.get("status") != "ok":
+        return None
+    raw = d.get("data")
+    return raw if isinstance(raw, dict) else None
+
+
 def _compact_crawl_payload(raw: dict[str, Any]) -> dict[str, Any]:
     """Reduce size for JSON responses (tables / previews can be huge)."""
     d = copy.deepcopy(raw)

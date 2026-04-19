@@ -126,6 +126,19 @@ def _login_sync(username: str, password: str) -> tuple[str, int]:
         conn.close()
 
 
+def get_user_id_by_tum_username_sync(tum_username: str) -> int | None:
+    """Resolve internal user id from stored TUM username (lowercased), or None if unknown."""
+    u = tum_username.strip().lower()
+    if not u:
+        return None
+    conn = _connect()
+    try:
+        row = conn.execute("SELECT id FROM users WHERE tum_username = ?", (u,)).fetchone()
+        return int(row["id"]) if row else None
+    finally:
+        conn.close()
+
+
 def _user_credentials_from_db_sync(user_id: int) -> tuple[str, str]:
     """Load TUM username and plaintext password from users table (decrypt cipher)."""
     conn = _connect()

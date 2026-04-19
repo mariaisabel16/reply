@@ -7,6 +7,8 @@ Environment: demo.campus.tum.de
 import asyncio
 import json
 import getpass
+import os
+from urllib.parse import quote
 from playwright.async_api import async_playwright, Page
 from rich.console import Console
 from rich.panel import Panel
@@ -17,12 +19,14 @@ import boto3
 
 # ─────────────────────────────────────────────
 # CONFIG — demo.campus.tum.de
+# CampusPilot/QandA_Agent: schreibende Anmeldung standardmäßig aus — siehe ENV.example
+# (CAMPUSPILOT_TUM_REGISTRATION_*). Nur Demo-URL ohne explizites Flag erlaubt.
 # ─────────────────────────────────────────────
 BASE_URL        = "https://demo.campus.tum.de/DSYSTEM"
 REST_BASE       = f"{BASE_URL}/ee/rest"
 UI_BASE         = f"{BASE_URL}/ee/ui/ca2/app/desktop/#"
 LOGIN_URL       = f"{UI_BASE}/login"
-CURRENT_TERM_ID = "206"   # SS2026 — adjust if demo uses a different termId
+CURRENT_TERM_ID = (os.environ.get("TUMONLINE_TERM_ID") or "206").strip() or "206"  # Demo-Semester; bei Bedarf setzen
 ORG_ID          = "1"
 
 MODEL_ID = "anthropic.claude-3-haiku-20240307-v1:0"  # change to your available model
@@ -114,8 +118,13 @@ class TUMonlineRESTClient:
     async def _get(self, path: str, params: dict = None) -> dict | list | None:
         url = f"{REST_BASE}/{path}"
         if params:
-            qs = "&".join(f"{k}={v}" for k, v in params.items())
-            url = f"{url}?{qs}"
+            # OData $filter enthält ; und = — ohne Encoding kann der Request fehlschlagen oder leer bleiben.
+            parts: list[str] = []
+            for key, val in params.items():
+                k = quote(str(key), safe="$")
+                v = quote(str(val), safe="")
+                parts.append(f"{k}={v}")
+            url = f"{url}?{'&'.join(parts)}"
         js = f"""
         async () => {{
             try {{
@@ -157,35 +166,92 @@ class TUMonlineRESTClient:
     # ── SEARCH COURSES ───────────────────────────
     async def search_courses(self, query: str) -> dict:
         # API returns courses inside "links" with rel="detail" and name="CpCourseDto"
-        filter_str = f"courseNormKey-eq=LVEAB;filterTerm-like={query};orgId-eq={ORG_ID};termId-eq={CURRENT_TERM_ID}"
-        data = await self._get("slc.tm.cp/student/courses", {
-            "$filter":  filter_str,
-            "$orderBy": "title=ascnf",
-            "$skip":    "0",
-            "$top":     "20"
-        })
+        q = (query or "").strip()
+        if not q:
+            return {"status": "error", "message": "empty_query"}
 
-        if not data or "__error" in data:
-            return {"status": "error", "message": str(data)}
+        async def _collect_from_response(data: dict | list | None) -> list[dict]:
+            courses: list[dict] = []
+            if not data or not isinstance(data, dict) or "__error" in data:
+                return courses
+            for link in data.get("links", []):
+                if link.get("rel") == "detail" and link.get("name") == "CpCourseDto":
+                    course_id = link.get("key", "?")
+                    detail = await self._get(f"slc.tm.cp/student/courses/{course_id}")
+                    if detail and isinstance(detail, dict) and "__error" not in detail:
+                        courses.append({
+                            "course_id":    course_id,
+                            "code":         detail.get("courseCode", "?"),
+                            "name":         detail.get("title", "?"),
+                            "type":         detail.get("courseTypeCode", ""),
+                            "sws":          str(detail.get("semesterHours", "")),
+                            "can_register": detail.get("registrationPossible", True),
+                        })
+            return courses
 
-        links = data.get("links", [])
-        courses = []
-        for link in links:
-            if link.get("rel") == "detail" and link.get("name") == "CpCourseDto":
-                course_id = link.get("key", "?")
-                # Fetch individual course detail for name, type, etc.
-                detail = await self._get(f"slc.tm.cp/student/courses/{course_id}")
-                if detail and "__error" not in detail:
-                    courses.append({
-                        "course_id":    course_id,
-                        "code":         detail.get("courseCode", "?"),
-                        "name":         detail.get("title", "?"),
-                        "type":         detail.get("courseTypeCode", ""),
-                        "sws":          str(detail.get("semesterHours", "")),
-                        "can_register": detail.get("registrationPossible", False),
-                    })
+        # Zuerst typische LV (LVEAB); bei 0 Treffern breiter suchen (z. B. andere courseNormKey).
+        filter_variants = [
+            f"courseNormKey-eq=LVEAB;filterTerm-like={q};orgId-eq={ORG_ID};termId-eq={CURRENT_TERM_ID}",
+            f"filterTerm-like={q};orgId-eq={ORG_ID};termId-eq={CURRENT_TERM_ID}",
+        ]
+        last_error: dict | list | None = None
+        for filter_str in filter_variants:
+            data = await self._get("slc.tm.cp/student/courses", {
+                "$filter":  filter_str,
+                "$orderBy": "title=ascnf",
+                "$skip":    "0",
+                "$top":     "20",
+            })
+            if not data or (isinstance(data, dict) and "__error" in data):
+                last_error = data
+                continue
+            courses = await _collect_from_response(data)
+            if courses:
+                return {
+                    "status": "ok",
+                    "search_outcome": "hits",
+                    "query": q,
+                    "count": len(courses),
+                    "courses": courses,
+                    "filter_used": filter_str.split(";")[0][:80],
+                }
 
-        return {"status": "ok", "query": query, "count": len(courses), "courses": courses}
+        if last_error is not None and isinstance(last_error, dict):
+            err: dict[str, object] = {
+                "status": "error",
+                "search_outcome": "api_error",
+                "message": str(
+                    last_error.get("__error")
+                    or last_error.get("__raw")
+                    or last_error
+                ),
+            }
+            if "__error" in last_error:
+                err["http_status_or_error"] = last_error.get("__error")
+            if "__url" in last_error:
+                u = str(last_error["__url"])
+                err["request_url_suffix"] = u[-220:] if len(u) > 220 else u
+            return err
+        if last_error is not None:
+            return {
+                "status": "error",
+                "search_outcome": "api_error",
+                "message": str(last_error),
+            }
+        return {
+            "status": "ok",
+            "search_outcome": "zero_hits",
+            "query": q,
+            "count": 0,
+            "courses": [],
+            "term_id": CURRENT_TERM_ID,
+            "hint": (
+                "Für diesen Suchbegriff und termId liefert die Demo **keine** passende Lehrveranstaltung "
+                "(Katalog leer) — das ist **kein** Ausfall der REST-API, sondern fehlende Daten in der Demo. "
+                "Mit anderem Titel/Kürzel suchen oder TUMONLINE_TERM_ID prüfen; die Demo spiegelt nicht "
+                "immer die produktive TUMonline-Kursliste."
+            ),
+        }
 
     # ── REGISTRATION INFO ────────────────────────
     async def get_course_registration_info(self, course_id: str) -> dict:
