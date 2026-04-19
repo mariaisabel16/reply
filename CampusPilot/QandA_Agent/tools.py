@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 from typing import Any
 
@@ -159,6 +160,39 @@ OPENAI_TOOLS: list[dict[str, Any]] = [
                     },
                 },
                 "required": ["semester_key"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "search_curriculum_kb",
+            "description": (
+                "Durchsucht die offizielle TUM/CampusPilot-Wissensbasis (Vektordatenbank) zu Modulen, "
+                "Credits, Studienordnung und Prüfungs-/Studienregeln. **Immer** nutzen, wenn der Nutzer "
+                "Studienplan, Pflichtmodule, ECTS, Modulinhalte, Prüfungsordnung oder vergleichbare "
+                "Regelwerke fragt — ergänzend zu NAT-Semesterdaten. Keine Antworten zu diesen Themen "
+                "ohne vorherige KB-Suche erfinden; wenn die Suche nichts Liefert, ehrlich sagen. "
+                "Bei **vollständigen Listen** (alle Pflichtmodule, alle Zeilen einer Tabelle) `k` groß setzen "
+                "(z. B. 20–25), ggf. zweite Suche mit anderem `query` (z. B. Studiengang + „kanonische CSV“)."
+            ),
+            "parameters": {
+                "type": "object",
+                "additionalProperties": False,
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": (
+                            "Suchanfrage auf Deutsch oder Englisch, z. B. Pflichtmodule Wirtschaftsinformatik, "
+                            "IN0001 ECTS, Studienordnung Master Informatik"
+                        ),
+                    },
+                    "k": {
+                        "type": "integer",
+                        "description": "Anzahl der ähnlichsten Textausschnitte (1–25); für „alle Module“ 20–25",
+                    },
+                },
+                "required": ["query"],
             },
         },
     },
@@ -514,6 +548,63 @@ async def dispatch_tool_call(name: str, arguments_json: str) -> str:
             return json.dumps({"error": "missing_semester_key"})
         data = await fetch_semester_by_key(key)
         return json.dumps(data, ensure_ascii=False)
+
+    if name == "search_curriculum_kb":
+        q = str(args.get("query", "")).strip()
+        if not q:
+            return json.dumps({"error": "missing_query", "tool": "search_curriculum_kb"}, ensure_ascii=False)
+        k_raw = args.get("k", 12)
+        try:
+            k = int(k_raw) if k_raw is not None and str(k_raw).strip() != "" else 12
+        except (TypeError, ValueError):
+            k = 12
+        try:
+
+            def _run() -> str:
+                from vector_kb import search_curriculum_kb_sync
+
+                return search_curriculum_kb_sync(q, k=k)
+
+            text = await asyncio.to_thread(_run)
+        except Exception as e:
+            msg = str(e).strip()
+            aws_code: str | None = None
+            aws_request_id: str | None = None
+            resp = getattr(e, "response", None)
+            if isinstance(resp, dict):
+                err = resp.get("Error") or {}
+                if isinstance(err, dict):
+                    aws_code = err.get("Code") if err.get("Code") else None
+                    if err.get("Message"):
+                        msg = str(err.get("Message", msg)).strip()
+                rid = resp.get("ResponseMetadata", {}).get("RequestId")
+                if rid:
+                    aws_request_id = str(rid)
+            if len(msg) > 1200:
+                msg = msg[:1200] + "…"
+            err_body: dict[str, Any] = {
+                "status": "error",
+                "tool": "search_curriculum_kb",
+                "message": msg,
+                "hint_de": (
+                    "AWS-Credentials (z. B. ~/.aws/credentials), Region eu-central-1 wie beim Index, "
+                    "IAM: Bedrock (Titan Embeddings) + s3vectors:QueryVectors/GetVectors; boto3 aktuell "
+                    "(Service `s3vectors`); `pip install -r requirements.txt` inkl. langchain-aws."
+                ),
+            }
+            if aws_code:
+                err_body["aws_error_code"] = aws_code
+            if aws_request_id:
+                err_body["aws_request_id"] = aws_request_id
+            return json.dumps(err_body, ensure_ascii=False)
+        return json.dumps(
+            {
+                "status": "ok",
+                "tool": "search_curriculum_kb",
+                "snippets_markdown": text or "(keine Treffer)",
+            },
+            ensure_ascii=False,
+        )
 
     if name == "tum_stored_idp_login_status":
         creds = tum_tool_credentials.get()

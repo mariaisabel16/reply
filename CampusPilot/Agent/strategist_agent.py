@@ -42,7 +42,9 @@ def get_vector_store():
             index_name=VECTOR_INDEX_NAME,
             embedding=embedding,
             region_name=AWS_REGION,
-            client=_s3_vectors_client
+            client=_s3_vectors_client,
+            non_filterable_metadata_keys=["_page_content"],
+            page_content_metadata_key="_page_content",
         )
     return _vector_store
 
