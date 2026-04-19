@@ -104,7 +104,7 @@ export function DashboardShell({ username }: Props) {
           <section className="dash-card dash-orchestration" aria-labelledby="orch-title">
             <div className="dash-card-head">
               <h2 id="orch-title" className="dash-card-title">
-                Autonomous orchestration log
+                Chat with your study buddy!
               </h2>
               <div className="dash-card-head-actions">
                 <button
