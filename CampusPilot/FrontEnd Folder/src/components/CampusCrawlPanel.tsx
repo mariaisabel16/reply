@@ -116,8 +116,14 @@ export function CampusCrawlPanel() {
   const curriculum = data && isRecord(data) && isRecord(data.curriculum_data) ? data.curriculum_data : null;
   const studentCard =
     data && isRecord(data) && isRecord(data.student_card_data) ? data.student_card_data : null;
+  const modulesData =
+    data && isRecord(data) && isRecord(data.modules_data) ? data.modules_data : null;
 
-  const modules = curriculum && Array.isArray(curriculum.modules) ? curriculum.modules : [];
+  // Grades from new scraper; fallback to curriculum modules for old cached data
+  const gradeItems: unknown[] = modulesData && Array.isArray(modulesData.items)
+    ? modulesData.items
+    : curriculum && Array.isArray(curriculum.modules) ? curriculum.modules : [];
+
   const studyStatus =
     curriculum && curriculum.study_status != null && String(curriculum.study_status).trim()
       ? String(curriculum.study_status).trim()
@@ -176,35 +182,96 @@ export function CampusCrawlPanel() {
         <pre className="crawl-raw">{JSON.stringify(data, null, 2).slice(0, 6000)}</pre>
       ) : null}
 
-      {s === "ok" && curriculum ? (
+      {s === "ok" && (curriculum || studentCard) ? (
         <div className="crawl-body">
-          <div className="crawl-summary">
-            <p className="crawl-summary-name">{String(curriculum.name ?? "Studierende/r")}</p>
-            <p className="crawl-summary-sub">
-              {[curriculum.semester ? String(curriculum.semester) : null, studyStatus].filter(Boolean).join(" · ")}
-            </p>
-            <div className="crawl-stat-row">
-              {curriculum.matrikelnummer != null && String(curriculum.matrikelnummer).trim() ? (
-                <div className="crawl-stat-pill">
-                  <span>Matrikel</span>
-                  <kbd>{String(curriculum.matrikelnummer)}</kbd>
+          {(() => {
+            // Name: prefer new scraper's full_name, fallback to curriculum
+            const displayName =
+              studentCard && studentCard.full_name != null && String(studentCard.full_name).trim()
+                ? String(studentCard.full_name)
+                : curriculum && curriculum.name != null
+                  ? String(curriculum.name)
+                  : "Studierende/r";
+
+            const matrikel =
+              studentCard && studentCard.matrikelnummer != null && String(studentCard.matrikelnummer).trim()
+                ? String(studentCard.matrikelnummer)
+                : curriculum && curriculum.matrikelnummer != null
+                  ? String(curriculum.matrikelnummer)
+                  : null;
+
+            const fachsemester =
+              studentCard && studentCard.fachsemester != null ? String(studentCard.fachsemester) : null;
+            const studienId =
+              studentCard && studentCard.studien_id != null && String(studentCard.studien_id).trim()
+                ? String(studentCard.studien_id)
+                : null;
+
+            // Stats: prefer modulesData (new scraper), fallback to counting from gradeItems
+            const passedCount = modulesData
+              ? Number(modulesData.passed ?? 0)
+              : gradeItems.filter((m: unknown) => isRecord(m) && /positiv/i.test(String(m.status ?? ""))).length;
+            const inProgressCount = modulesData
+              ? Number(modulesData.in_progress ?? 0)
+              : gradeItems.filter((m: unknown) => {
+                  if (!isRecord(m)) return false;
+                  const st = String(m.status ?? "").toLowerCase().trim();
+                  return st.length > 0 && !/positiv/i.test(st);
+                }).length;
+            const passedEcts = modulesData
+              ? Number(modulesData.total_ects ?? 0)
+              : gradeItems.reduce((sum: number, m: unknown) => {
+                  if (!isRecord(m) || !/positiv/i.test(String(m.status ?? ""))) return sum;
+                  return sum + (Number(m.credits_current) || 0);
+                }, 0);
+
+            return (
+              <div className="crawl-summary">
+                <p className="crawl-summary-name">{displayName}</p>
+                {matrikel && (
+                  <p className="crawl-summary-matrikel">
+                    <span className="crawl-summary-matrikel-label">MATRIKEL</span>
+                    <strong>{matrikel}</strong>
+                  </p>
+                )}
+                {studyStatus && <p className="crawl-summary-sub">{studyStatus}</p>}
+                <div className="crawl-stats-grid">
+                  {fachsemester && (
+                    <div className="crawl-stats-item">
+                      <span className="crawl-stats-label">Fachsemester</span>
+                      <span className="crawl-stats-value">{fachsemester}</span>
+                    </div>
+                  )}
+                  {studienId && (
+                    <div className="crawl-stats-item">
+                      <span className="crawl-stats-label">Studien-ID</span>
+                      <span className="crawl-stats-value" style={{ fontSize: "0.78rem" }}>{studienId}</span>
+                    </div>
+                  )}
+                  {curriculum && isRecord(curriculum.ects) && (
+                    <div className="crawl-stats-item">
+                      <span className="crawl-stats-label">ECTS</span>
+                      <span className="crawl-stats-value">
+                        {String(curriculum.ects.ects_current ?? "?")} / {String(curriculum.ects.ects_total ?? "?")}
+                      </span>
+                    </div>
+                  )}
+                  {passedCount > 0 && (
+                    <div className="crawl-stats-item crawl-stats-item--passed">
+                      <span className="crawl-stats-label">Bestanden</span>
+                      <span className="crawl-stats-value">{passedCount} <small>({passedEcts} ECTS)</small></span>
+                    </div>
+                  )}
+                  {inProgressCount > 0 && (
+                    <div className="crawl-stats-item crawl-stats-item--progress">
+                      <span className="crawl-stats-label">Laufend</span>
+                      <span className="crawl-stats-value">{inProgressCount}</span>
+                    </div>
+                  )}
                 </div>
-              ) : studentCard && studentCard.matrikelnummer != null ? (
-                <div className="crawl-stat-pill">
-                  <span>Matrikel</span>
-                  <kbd>{String(studentCard.matrikelnummer)}</kbd>
-                </div>
-              ) : null}
-              {curriculum.ects && isRecord(curriculum.ects) ? (
-                <div className="crawl-stat-pill">
-                  <span>Credits</span>
-                  <kbd>
-                    {String(curriculum.ects.ects_current ?? "?")} / {String(curriculum.ects.ects_total ?? "?")}
-                  </kbd>
-                </div>
-              ) : null}
-            </div>
-          </div>
+              </div>
+            );
+          })()}
 
           {studentCard && isRecord(studentCard.basisinformationen) ? (
             <section className="crawl-section" aria-labelledby="crawl-kartei-title">
@@ -222,45 +289,77 @@ export function CampusCrawlPanel() {
             </section>
           ) : null}
 
-          {modules.length > 0 ? (
+          {gradeItems.length > 0 ? (
             <section className="crawl-section" aria-labelledby="crawl-modules-title">
               <h3 id="crawl-modules-title" className="crawl-section-title">
-                Module ({modules.length})
+                {modulesData ? "Noten" : "Module"} ({gradeItems.length})
               </h3>
               <div className="crawl-modules-wrap">
-                <ul className="crawl-modules">
-                  {modules.slice(0, 50).map((m: unknown, i: number) => {
-                    if (!isRecord(m)) return null;
-                    const name = String(m.module_name ?? "—");
-                    const stLabel = String(m.status ?? "").trim();
-                    const positive = /positiv/i.test(stLabel);
-                    return (
-                      <li key={i} className="crawl-mod">
-                        <span className="crawl-mod-name" title={name.length > 120 ? name : undefined}>
-                          {name}
-                        </span>
-                        <div className="crawl-mod-meta">
-                          {stLabel ? (
-                            <span className={positive ? "crawl-mod-badge" : "crawl-mod-badge crawl-mod-badge--neutral"}>
-                              {stLabel}
-                            </span>
-                          ) : null}
-                          {m.credits_current != null && m.credits_total != null ? (
-                            <span>
-                              {String(m.credits_current)}/{String(m.credits_total)} Credits
-                            </span>
-                          ) : null}
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
+                <table className="crawl-mod-table">
+                  <thead>
+                    <tr>
+                      {modulesData && <th>ID</th>}
+                      <th>Titel</th>
+                      {modulesData ? <th>Note</th> : <th>Status</th>}
+                      <th>Credits</th>
+                      {modulesData && <th>Datum</th>}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {gradeItems.slice(0, 100).map((m: unknown, i: number) => {
+                      if (!isRecord(m)) return null;
+                      if (modulesData) {
+                        // New scraper data
+                        const title = String(m.title ?? m.module_name ?? "—");
+                        const grade = m.grade != null ? Number(m.grade) : null;
+                        const gradeStr = grade != null ? grade.toFixed(1) : "—";
+                        return (
+                          <tr key={i}>
+                            <td className="crawl-mod-table-id">{String(m.module_id ?? "—")}</td>
+                            <td className="crawl-mod-table-title" title={title.length > 60 ? title : undefined}>
+                              {title}
+                            </td>
+                            <td className={`crawl-mod-table-grade ${grade != null ? (grade <= 1.5 ? "grade-excellent" : grade <= 2.5 ? "grade-good" : grade <= 3.5 ? "grade-ok" : "grade-pass") : ""}`}>
+                              {gradeStr}
+                            </td>
+                            <td className="crawl-mod-table-credits">{m.credits != null ? String(m.credits) : "—"}</td>
+                            <td className="crawl-mod-table-date">{m.date != null ? String(m.date) : "—"}</td>
+                          </tr>
+                        );
+                      } else {
+                        // Old data fallback
+                        const name = String(m.module_name ?? "—");
+                        const stLabel = String(m.status ?? "").trim();
+                        const positive = /positiv/i.test(stLabel);
+                        return (
+                          <tr key={i}>
+                            <td className="crawl-mod-table-title" title={name.length > 80 ? name : undefined}>
+                              {name}
+                            </td>
+                            <td>
+                              {stLabel && (
+                                <span className={positive ? "crawl-mod-badge" : "crawl-mod-badge crawl-mod-badge--neutral"}>
+                                  {stLabel}
+                                </span>
+                              )}
+                            </td>
+                            <td className="crawl-mod-table-credits">
+                              {m.credits_current != null && m.credits_total != null
+                                ? `${String(m.credits_current)} / ${String(m.credits_total)}`
+                                : "—"}
+                            </td>
+                          </tr>
+                        );
+                      }
+                    })}
+                  </tbody>
+                </table>
               </div>
-              {modules.length > 50 ? (
+              {gradeItems.length > 100 && (
                 <p className="crawl-muted" style={{ padding: "0.35rem 0 0", margin: 0 }}>
-                  … {modules.length - 50} weitere in den Rohdaten.
+                  … {gradeItems.length - 100} weitere in den Rohdaten.
                 </p>
-              ) : null}
+              )}
             </section>
           ) : null}
         </div>
