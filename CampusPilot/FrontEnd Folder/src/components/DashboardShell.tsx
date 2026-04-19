@@ -1,5 +1,6 @@
+import { useRef } from "react";
 import { BRAND } from "../branding";
-import { AgentChat } from "./AgentChat";
+import { AgentChat, type AgentChatHandle } from "./AgentChat";
 import { CampusCrawlPanel } from "./CampusCrawlPanel";
 import "./DashboardShell.css";
 
@@ -28,6 +29,8 @@ const MOCK_LUNCH = [
 ];
 
 export function DashboardShell({ username }: Props) {
+  const orchestrationChatRef = useRef<AgentChatHandle>(null);
+
   return (
     <div className="dashboard">
       <aside className="dash-sidebar" aria-label="Hauptnavigation">
@@ -103,10 +106,20 @@ export function DashboardShell({ username }: Props) {
               <h2 id="orch-title" className="dash-card-title">
                 Autonomous orchestration log
               </h2>
-              <span className="dash-card-badge">Live</span>
+              <div className="dash-card-head-actions">
+                <button
+                  type="button"
+                  className="dash-card-chat-reset"
+                  onClick={() => void orchestrationChatRef.current?.resetChat()}
+                  title="Server-Chat und Anmelde-Auswahl zurücksetzen"
+                >
+                  Neuer Chat
+                </button>
+                <span className="dash-card-badge">Live</span>
+              </div>
             </div>
             <div className="dash-orchestration-body">
-              <AgentChat embedded />
+              <AgentChat ref={orchestrationChatRef} embedded />
             </div>
           </section>
 

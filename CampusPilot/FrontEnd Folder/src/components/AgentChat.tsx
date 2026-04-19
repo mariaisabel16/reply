@@ -1,8 +1,13 @@
-import { useEffect, useRef, useState } from "react";
-import { sendAgentMessage, type ChatHistoryItem } from "../agentApi";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { fetchAgentChatMessages, resetAgentChat, sendAgentMessage } from "../agentApi";
 import { BRAND } from "../branding";
 import { MessageBody } from "./MessageBody";
 import "./AgentChat.css";
+
+export type AgentChatHandle = {
+  /** Leert Server-Chat + Pending-Zustände und setzt die Begrüßung im UI. */
+  resetChat: () => Promise<void>;
+};
 
 type AgentChatProps = {
   /** Eingebettet ins Dashboard: kein großer Titel, heller Karten-Stil */
@@ -21,19 +26,54 @@ function createId() {
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
-export function AgentChat({ embedded = false }: AgentChatProps) {
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: createId(),
-      role: "assistant",
-      content:
-        `Hallo — ich bin der Assistent von **${BRAND.name}**. Stell eine Frage zu Semesterdaten, z. B. **Welche Feiertage gibt es im Semester 2026s?** ` +
-          "Antworten kommen vom **QandA-Agent** (nach Login mit deiner TUM-/LRZ-Kennung). Ohne API-Key läuft ein **Demo-Modus** mit echten JSON-Daten; mit Ollama oder OpenAI siehe ENV.example dort.",
-    },
-  ]);
+function introBubble(): ChatMessage {
+  return {
+    id: createId(),
+    role: "assistant",
+    content:
+      `Hallo — ich bin der Assistent von **${BRAND.name}**. Stell eine Frage zu Semesterdaten, z. B. **Welche Feiertage gibt es im Semester 2026s?** ` +
+      "Antworten kommen vom **QandA-Agent** (nach Login mit deiner TUM-/LRZ-Kennung). Ohne API-Key läuft ein **Demo-Modus** mit echten JSON-Daten; mit Ollama oder OpenAI siehe ENV.example dort. " +
+      "Dein Chat wird **in der Login-Session** auf dem Server gespeichert — mit **Neuer Chat** setzt du ihn zurück.",
+  };
+}
+
+export const AgentChat = forwardRef<AgentChatHandle, AgentChatProps>(function AgentChat(
+  { embedded = false },
+  ref,
+) {
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [sessionReady, setSessionReady] = useState(false);
   const [draft, setDraft] = useState("");
   const [isThinking, setIsThinking] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const rows = await fetchAgentChatMessages();
+        if (cancelled) return;
+        if (rows.length === 0) {
+          setMessages([introBubble()]);
+        } else {
+          setMessages(
+            rows.map((r, i) => ({
+              id: `loaded-${i}-${r.role}`,
+              role: r.role as Role,
+              content: r.content,
+            })),
+          );
+        }
+      } catch {
+        if (!cancelled) setMessages([introBubble()]);
+      } finally {
+        if (!cancelled) setSessionReady(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     const el = listRef.current;
@@ -41,21 +81,38 @@ export function AgentChat({ embedded = false }: AgentChatProps) {
     el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
   }, [messages, isThinking]);
 
+  const resetChat = useCallback(async () => {
+    if (isThinking || !sessionReady) return;
+    try {
+      await resetAgentChat();
+      setMessages([introBubble()]);
+      setDraft("");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: createId(),
+          role: "assistant",
+          content: `**Neuer Chat:** Zurücksetzen ist fehlgeschlagen (${msg}).`,
+        },
+      ]);
+    }
+  }, [isThinking, sessionReady]);
+
+  useImperativeHandle(ref, () => ({ resetChat }), [resetChat]);
+
   async function send() {
     const text = draft.trim();
-    if (!text || isThinking) return;
+    if (!text || isThinking || !sessionReady) return;
 
     const userMessage: ChatMessage = { id: createId(), role: "user", content: text };
     setMessages((prev) => [...prev, userMessage]);
     setDraft("");
     setIsThinking(true);
 
-    const history: ChatHistoryItem[] = messages
-      .filter((m): m is ChatMessage & { role: "user" | "assistant" } => m.role === "user" || m.role === "assistant")
-      .map((m) => ({ role: m.role, content: m.content }));
-
     try {
-      const data = await sendAgentMessage(text, history);
+      const data = await sendAgentMessage(text);
       const body = data.reply.trim() || "(Leere Antwort vom Server.)";
       const reply: ChatMessage = {
         id: createId(),
@@ -103,6 +160,11 @@ export function AgentChat({ embedded = false }: AgentChatProps) {
 
       <div className={embedded ? "agent-chat-inner agent-chat-inner--tight" : "agent-chat-inner"}>
         <div className="agent-chat-panel">
+          {!sessionReady ? (
+            <div className="agent-chat-loading" aria-busy="true">
+              Konversation wird geladen…
+            </div>
+          ) : null}
           <div ref={listRef} className="agent-chat-messages" role="log" aria-live="polite">
             {messages.map((m) => (
               <article
@@ -136,6 +198,7 @@ export function AgentChat({ embedded = false }: AgentChatProps) {
               rows={2}
               placeholder="z. B. Welche Feiertage gibt es im Semester 2026s?"
               value={draft}
+              disabled={!sessionReady || isThinking}
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
@@ -146,7 +209,12 @@ export function AgentChat({ embedded = false }: AgentChatProps) {
             />
             <div className="agent-composer-row">
               <p className="agent-hint">Enter senden · Shift+Enter Zeilenumbruch</p>
-              <button type="button" className="agent-send" onClick={() => void send()} disabled={isThinking}>
+              <button
+                type="button"
+                className="agent-send"
+                onClick={() => void send()}
+                disabled={!sessionReady || isThinking}
+              >
                 Senden
               </button>
             </div>
@@ -155,4 +223,6 @@ export function AgentChat({ embedded = false }: AgentChatProps) {
       </div>
     </section>
   );
-}
+});
+
+AgentChat.displayName = "AgentChat";

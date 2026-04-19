@@ -11,6 +11,10 @@ TTL_SECONDS = 15 * 60
 _pending: dict[int, _PendingRegistration] = {}
 
 
+def clear_user(user_id: int) -> None:
+    _pending.pop(user_id, None)
+
+
 @dataclass(frozen=True)
 class _PendingRegistration:
     course_id: str

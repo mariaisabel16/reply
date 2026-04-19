@@ -12,6 +12,7 @@ from nat_client import (
     nat_get_semesters_list,
     nat_get_semesters_schedule,
 )
+import course_pick_pending
 import registration_pending
 
 from config import settings
@@ -166,10 +167,12 @@ OPENAI_TOOLS: list[dict[str, Any]] = [
         "function": {
             "name": "tumonline_search_courses",
             "description": (
-                "TUMonline (Demo-Campus): Kurse/Lehrveranstaltungen suchen nach Kürzel (z. B. IN2061) oder "
-                "Titel. Liefert interne `course_id` (lange Zahl) und `can_register` (Kurzfassung aus der LV-Detail-API). "
-                "`can_register: false` heißt **nicht** automatisch, dass keine Verfahren/Fristen existieren — "
-                "zuverlässige Anmeldedaten liefert `tumonline_get_registration_info`."
+                "TUMonline (Demo-Campus): Kurse/Lehrveranstaltungen suchen — `query` kann **Modulkürzel** "
+                "(IN2061), **Stichworte** oder einen **Titelteil** sein (keine interne course_id nötig). "
+                "Liefert pro Treffer u. a. `pick_index`, `code`, `name`, `type`, `course_id`, `can_register`. "
+                "Bei **mehreren** Treffern zusätzlich `candidates_list_markdown_de`: **vollständige** Liste aller "
+                "Treffer — im Chat **unverkürzt** an den Nutzer übergeben. Auswahl danach mit `tumonline_pick_course`. "
+                "`can_register: false` schließt `tumonline_get_registration_info` nicht aus."
             ),
             "parameters": {
                 "type": "object",
@@ -181,6 +184,35 @@ OPENAI_TOOLS: list[dict[str, Any]] = [
                     },
                 },
                 "required": ["query"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "tumonline_pick_course",
+            "description": (
+                "Nach `tumonline_search_courses`: **eine** LV aus der zuletzt gelieferten Trefferliste wählen. "
+                "Mindestens eines setzen: `pick_index` (1…n aus der Liste), oder `course_code`, oder interne "
+                "`course_id`, oder `title_contains` (muss eindeutig sein). Rückgabe enthält `course_id` für "
+                "`tumonline_get_registration_info`. Bei `status: ambiguous` die `matches`-Liste erneut zeigen."
+            ),
+            "parameters": {
+                "type": "object",
+                "additionalProperties": False,
+                "properties": {
+                    "pick_index": {
+                        "type": "integer",
+                        "description": "1-basierter Index wie in der letzten Suche (Feld pick_index)",
+                    },
+                    "course_code": {"type": "string", "description": "z. B. IN2061"},
+                    "course_id": {"type": "string", "description": "Interne numerische course_id"},
+                    "title_contains": {
+                        "type": "string",
+                        "description": "Teilstring im Kursnamen — nur wenn dadurch genau ein Treffer entsteht",
+                    },
+                },
+                "required": [],
             },
         },
     },
@@ -302,6 +334,31 @@ def bedrock_tool_config() -> dict[str, Any]:
             }
         )
     return {"tools": tools}
+
+
+def _format_multi_course_pick_list(courses: list[Any]) -> str | None:
+    """
+    Human-readable list of **all** search hits for disambiguation (no truncation).
+    The model should paste this verbatim to the user when count > 1.
+    """
+    rows = [c for c in courses if isinstance(c, dict) and c.get("pick_index") is not None]
+    if len(rows) < 2:
+        return None
+    lines: list[str] = [
+        "Alle Treffer (vollständig — im Chat **unverkürzt** so an den Nutzer übergeben, nicht paraphrasieren):",
+        "",
+    ]
+    for c in sorted(rows, key=lambda x: int(x.get("pick_index") or 0)):
+        title = str(c.get("name", "?")).replace("\n", " ").replace("\r", " ").strip()
+        title = title.replace("`", "'")
+        code = str(c.get("code", "?")).replace("`", "'")
+        typ = str(c.get("type", "") or "?").replace("`", "'")
+        cid = str(c.get("course_id", "?")).replace("`", "'")
+        lines.append(
+            f"- **{c.get('pick_index')}** · Kürzel `{code}` · {title} "
+            f"· Typ `{typ}` · interne `course_id` `{cid}`"
+        )
+    return "\n".join(lines)
 
 
 def _pick_primary_procedure(procedures: list[Any]) -> dict[str, Any] | None:
@@ -493,11 +550,74 @@ async def dispatch_tool_call(name: str, arguments_json: str) -> str:
         try:
             client = await get_tum_registration_client()
             data = await client.search_courses(q)
+            uid = current_auth_user_id.get()
+            if uid is not None and isinstance(data, dict):
+                if data.get("status") == "ok":
+                    courses = data.get("courses")
+                    if isinstance(courses, list):
+                        for i, c in enumerate(courses):
+                            if isinstance(c, dict):
+                                c["pick_index"] = i + 1
+                        dict_courses = [c for c in courses if isinstance(c, dict)]
+                        course_pick_pending.store_from_courses(uid, dict_courses)
+                        if len(dict_courses) > 1:
+                            data["candidates_list_markdown_de"] = _format_multi_course_pick_list(courses)
+                            data["disambiguation_hint_de"] = (
+                                "Mehrere Treffer: den **kompletten** Text aus `candidates_list_markdown_de` "
+                                "1:1 an den Nutzer senden (jedes Kürzel, jeder Titel, jede course_id). "
+                                "Die API liefert `code` und `name` pro Treffer — nichts davon weglassen oder "
+                                "behaupten, es fehle. Zur Wahl danach `tumonline_pick_course` … "
+                                "(pick_index / course_code / course_id / title_contains), anschließend "
+                                "`tumonline_get_registration_info`."
+                            )
+                    else:
+                        course_pick_pending.clear(uid)
+                else:
+                    course_pick_pending.clear(uid)
             return json.dumps(data, ensure_ascii=False)
         except Exception as e:
+            _uid_clear = current_auth_user_id.get()
+            if _uid_clear is not None:
+                course_pick_pending.clear(_uid_clear)
             return _tum_demo_session_error_json(
                 e, context="tumonline_search_courses", extra={"search_outcome": "session_error"}
             )
+
+    if name == "tumonline_pick_course":
+        uid = current_auth_user_id.get()
+        if uid is None:
+            return json.dumps({"status": "error", "message_de": "Intern: keine Nutzer-ID."})
+        raw_pi = args.get("pick_index")
+        pick_i: int | None
+        if raw_pi is None or (isinstance(raw_pi, str) and not str(raw_pi).strip()):
+            pick_i = None
+        else:
+            try:
+                pick_i = int(raw_pi)
+            except (TypeError, ValueError):
+                return json.dumps({"status": "error", "message_de": "pick_index muss eine ganze Zahl sein."})
+        cc = args.get("course_code")
+        cc_s = str(cc).strip() if cc is not None and str(cc).strip() else None
+        ci = args.get("course_id")
+        ci_s = str(ci).strip() if ci is not None and str(ci).strip() else None
+        tc = args.get("title_contains")
+        tc_s = str(tc).strip() if tc is not None and str(tc).strip() else None
+        if pick_i is None and not cc_s and not ci_s and not tc_s:
+            return json.dumps(
+                {
+                    "status": "error",
+                    "message_de": "Mindestens eines angeben: pick_index, course_code, course_id oder title_contains.",
+                },
+                ensure_ascii=False,
+            )
+        out = course_pick_pending.pick_course(
+            uid,
+            pick_index=pick_i,
+            course_code=cc_s,
+            course_id=ci_s,
+            title_contains=tc_s,
+        )
+        return json.dumps(out, ensure_ascii=False)
 
     if name == "tumonline_get_registration_info":
         cid = str(args.get("course_id", "")).strip()

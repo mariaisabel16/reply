@@ -33,6 +33,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, field_validator
 
 from agent import backend_mode, run_chat_turn
+import chat_session_store
+import course_pick_pending
+import registration_pending
 from campus_crawl import CrawlStatusResponse, get_crawl_status_for_user
 from campuspilot_auth import (
     SESSION_COOKIE_NAME,
@@ -90,12 +93,19 @@ class ChatMessage(BaseModel):
 
 class ChatRequest(BaseModel):
     message: str = Field(..., min_length=1, max_length=8000)
-    history: list[ChatMessage] = Field(default_factory=list)
+    history: list[ChatMessage] = Field(
+        default_factory=list,
+        description="Ignored: Konversation wird serverseitig pro Login-Session gespeichert.",
+    )
 
 
 class ChatResponse(BaseModel):
     reply: str
     debug_tools: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class ChatMessagesResponse(BaseModel):
+    messages: list[ChatMessage]
 
 
 @app.get("/health")
@@ -128,13 +138,29 @@ async def auth_crawl_status(user: Annotated[AuthUser, Depends(require_auth_user)
     return CrawlStatusResponse(**get_crawl_status_for_user(user.user_id))
 
 
+@app.get("/chat/messages", response_model=ChatMessagesResponse)
+async def chat_messages_get(user: Annotated[AuthUser, Depends(require_auth_user)]) -> ChatMessagesResponse:
+    rows = chat_session_store.get_messages(user.user_id)
+    return ChatMessagesResponse(
+        messages=[ChatMessage(role=m["role"], content=m["content"]) for m in rows],
+    )
+
+
+@app.post("/chat/reset")
+async def chat_reset(user: Annotated[AuthUser, Depends(require_auth_user)]) -> dict[str, bool]:
+    chat_session_store.clear(user.user_id)
+    course_pick_pending.clear(user.user_id)
+    registration_pending.clear_user(user.user_id)
+    return {"ok": True}
+
+
 @app.post("/chat", response_model=ChatResponse)
 async def chat(
     req: ChatRequest,
     user: Annotated[AuthUser, Depends(require_auth_user)],
 ) -> ChatResponse:
-    messages: list[dict[str, Any]] = [{"role": m.role, "content": m.content} for m in req.history]
-    messages.append({"role": "user", "content": req.message})
+    prior = chat_session_store.get_messages(user.user_id)
+    messages: list[dict[str, Any]] = [*prior, {"role": "user", "content": req.message}]
     cred_token = tum_tool_credentials.set(
         TumPortalCredentials(tum_username=user.tum_username, tum_password=user.password_plain)
     )
@@ -149,4 +175,8 @@ async def chat(
         await close_tum_registration_session()
         current_auth_user_id.reset(uid_token)
         tum_tool_credentials.reset(cred_token)
+    chat_session_store.set_messages(
+        user.user_id,
+        [*messages, {"role": "assistant", "content": reply}],
+    )
     return ChatResponse(reply=reply, debug_tools=dbg)
