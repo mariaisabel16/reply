@@ -305,10 +305,11 @@ def bedrock_tool_config() -> dict[str, Any]:
 
 
 def _pick_primary_procedure(procedures: list[Any]) -> dict[str, Any] | None:
+    """Deterministic pick: stable order by procedure_id, then prefer can_register."""
+    items = [p for p in procedures if isinstance(p, dict)]
+    items.sort(key=lambda p: str(p.get("procedure_id") or ""))
     chosen: dict[str, Any] | None = None
-    for p in procedures:
-        if not isinstance(p, dict):
-            continue
+    for p in items:
         pid = str(p.get("procedure_id") or "").strip()
         if not pid or pid == "?":
             continue
@@ -368,16 +369,29 @@ async def _tumonline_get_registration_info_with_gate(course_id: str) -> dict[str
         info["registration_gate"] = {"de": "Intern: keine Nutzer-ID für Bestätigungsgate."}
         return info
     label = str(info.get("course_name") or picked.get("name") or course_id)
-    phrase = registration_pending.set_pending(uid, str(course_id), str(picked["procedure_id"]), label)
+    phrase, phrase_reused = registration_pending.set_pending(
+        uid, str(course_id), str(picked["procedure_id"]), label
+    )
+    pid_reg = str(picked.get("procedure_id") or "").strip()
     info["registration_gate"] = {
-        "procedure_id_for_registration": picked.get("procedure_id"),
+        "course_id_for_registration": str(course_id).strip(),
+        "procedure_id_for_registration": pid_reg,
+        "procedure_can_register": bool(picked.get("can_register", True)),
         "confirmation_exact_line": phrase,
+        "confirmation_phrase_reused": phrase_reused,
+        "register_tool_arguments_de": (
+            f"Später `tumonline_register_course` mit **exakt** "
+            f"course_id={str(course_id).strip()!r}, procedure_id={pid_reg!r} "
+            f"und user_confirmation_line gleich der Zeile confirmation_exact_line."
+        ),
         "instructions_for_model_de": (
-            "Zeige dem Nutzer die wichtigsten Fakten (Name, Fristen, Plätze). "
-            "Die Anmeldung erfolgt erst nach ausdrücklicher Zustimmung: Bitte den Nutzer, die folgende "
-            "Zeile **exakt** (ohne Anführungszeichen) als eigene Chat-Nachricht zu senden. "
-            "Rufe `tumonline_register_course` erst auf, wenn der Nutzer genau diese Zeile geschrieben hat — "
-            "und setze `user_confirmation_line` identisch zu dieser Zeile."
+            "**procedure_id** und **course_id** nur aus diesem JSON übernehmen — nichts raten oder "
+            "„korrigieren“. Wenn du `tumonline_get_registration_info` erneut aufrufst und sich "
+            "course_id/procedure_id nicht geändert haben, bleibt dieselbe Bestätigungszeile gültig "
+            "(confirmation_phrase_reused=true). Entschuldige **nicht** für eine „falsche“ procedure_id, "
+            "wenn du sie nie aus dem Tool-JSON kopiert hast. "
+            "Zeige dem Nutzer Fristen/Plätze; die Anmeldung erst nach exakter Bestätigungszeile als "
+            "eigener Chat-Nachricht; `tumonline_register_course` erst danach mit identischer user_confirmation_line."
         ),
     }
     return info

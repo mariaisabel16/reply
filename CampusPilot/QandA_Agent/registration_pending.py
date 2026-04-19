@@ -20,17 +20,42 @@ class _PendingRegistration:
     created: float
 
 
-def set_pending(user_id: int, course_id: str, procedure_id: str, course_label: str) -> str:
-    """Store or replace the pending registration for this user; return the exact confirmation line."""
+def set_pending(user_id: int, course_id: str, procedure_id: str, course_label: str) -> tuple[str, bool]:
+    """
+    Store or replace the pending registration for this user; return (exact confirmation line, reused).
+
+    If the user already has a non-expired pending gate for the **same** course_id and procedure_id,
+    the **same** confirmation phrase is kept (TTL refreshed). Avoids flaky UX when the model calls
+    `tumonline_get_registration_info` multiple times without changing the target LV/Verfahren.
+    """
+    cid = str(course_id).strip()
+    pid = str(procedure_id).strip()
+    now = time.time()
+    existing = _pending.get(user_id)
+    if existing is not None:
+        if (
+            existing.course_id == cid
+            and existing.procedure_id == pid
+            and now - existing.created <= TTL_SECONDS
+        ):
+            _pending[user_id] = _PendingRegistration(
+                course_id=cid,
+                procedure_id=pid,
+                confirm_phrase=existing.confirm_phrase,
+                course_label=course_label[:200],
+                created=now,
+            )
+            return existing.confirm_phrase, True
+
     phrase = f"BESTÄTIGE ANMELDUNG {secrets.token_hex(4).upper()}"
     _pending[user_id] = _PendingRegistration(
-        course_id=str(course_id),
-        procedure_id=str(procedure_id),
+        course_id=cid,
+        procedure_id=pid,
         confirm_phrase=phrase,
         course_label=course_label[:200],
-        created=time.time(),
+        created=now,
     )
-    return phrase
+    return phrase, False
 
 
 def verify_and_consume(user_id: int, course_id: str, procedure_id: str, user_line: str) -> tuple[bool, str | None]:

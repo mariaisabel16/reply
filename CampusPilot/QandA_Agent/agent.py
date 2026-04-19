@@ -47,6 +47,10 @@ standardmäßig demo.campus.tum.de, **nicht** produktives campus.tum.de):
   `tumonline_register_course` aufrufen mit derselben Zeile in `user_confirmation_line` (1:1, inkl. Großbuchstaben).
 - Ohne exakte Bestätigungszeile darfst du `tumonline_register_course` nicht aufrufen. Bei mehreren Treffern aus
   der Suche kurz nachfragen, welche Lehrveranstaltung gemeint ist, bevor du Schritt (2) ausführst.
+- `procedure_id` und `course_id` für `tumonline_register_course` **ausschließlich** aus dem letzten
+  `tumonline_get_registration_info` → `registration_gate` kopieren (`procedure_id_for_registration`,
+  `course_id_for_registration`). Niemals IDs „korrigieren“ oder aus Prosa erraten; keine Entschuldigung
+  für eine zuvor „falsche“ procedure_id erfinden, wenn die Werte nicht aus dem Tool kamen.
 - Wenn `tumonline_register_course` mit `status: blocked` antwortet, hat der Server die Anmeldung absichtlich
   verweigert (Sicherheits-Defaults) — kurz erklären, ohne technische Details zu übertreiben.
 
