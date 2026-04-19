@@ -197,6 +197,7 @@ export function DashboardShell({ username }: Props) {
             </ul>
           </section>
 
+
           <section className="dash-card dash-lunch" aria-labelledby="lunch-title">
             <h2 id="lunch-title" className="dash-card-title dash-card-title--sm">
               Mensa Food
