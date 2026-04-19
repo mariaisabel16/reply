@@ -267,12 +267,35 @@
 }
 
 .agent-chat--embedded .agent-thinking {
-  background: #f1f5f9;
-  border-color: #cbd5e1;
+  background: #e2e8f0;
+  border-color: #94a3b8;
 }
 
 .agent-chat--embedded .agent-thinking-label {
-  color: #64748b;
+  color: #334155;
+  font-weight: 600;
+}
+
+.agent-chat--embedded .agent-thinking-dot {
+  width: 8px;
+  height: 8px;
+  background: #0065bd;
+  box-shadow: 0 0 0 1px rgba(0, 101, 189, 0.25);
+  animation: agentPulseEmbedded 1.05s ease-in-out infinite;
+}
+
+@keyframes agentPulseEmbedded {
+  0%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.55;
+    background: #0065bd;
+  }
+  50% {
+    transform: translateY(-3px);
+    opacity: 1;
+    background: #004578;
+  }
 }
 
 .agent-chat--embedded .agent-chat-composer {
