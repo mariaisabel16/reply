@@ -40,6 +40,14 @@
   max-height: min(720px, calc(100dvh - 200px));
 }
 
+.agent-chat-loading {
+  flex-shrink: 0;
+  padding: 12px 16px;
+  font-size: 13px;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+}
+
 .agent-chat-messages {
   flex: 1 1 auto;
   min-height: 0;

@@ -13,6 +13,10 @@ export type ChatResponse = {
   debug_tools: unknown[];
 };
 
+export type ChatMessagesPayload = {
+  messages: ChatHistoryItem[];
+};
+
 export type AgentHealth = {
   status: string;
   mode?: string;
@@ -32,16 +36,37 @@ export async function fetchAgentHealth(): Promise<AgentHealth> {
   }
 }
 
-export async function sendAgentMessage(
-  message: string,
-  history: ChatHistoryItem[],
-): Promise<ChatResponse> {
+export async function fetchAgentChatMessages(): Promise<ChatHistoryItem[]> {
+  const base = agentApiBase();
+  const res = await fetch(`${base}/chat/messages`, { credentials: "include" });
+  const text = await res.text();
+  if (!res.ok) {
+    throw new Error(text || `HTTP ${res.status}`);
+  }
+  const data = JSON.parse(text) as ChatMessagesPayload;
+  return Array.isArray(data.messages) ? data.messages : [];
+}
+
+export async function resetAgentChat(): Promise<void> {
+  const base = agentApiBase();
+  const res = await fetch(`${base}/chat/reset`, {
+    method: "POST",
+    credentials: "include",
+  });
+  const text = await res.text();
+  if (!res.ok) {
+    throw new Error(text || `HTTP ${res.status}`);
+  }
+}
+
+/** Konversation liegt serverseitig in der Session; `history` wird nicht mehr mitgeschickt. */
+export async function sendAgentMessage(message: string): Promise<ChatResponse> {
   const base = agentApiBase();
   const res = await fetch(`${base}/chat`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "include",
-    body: JSON.stringify({ message, history }),
+    body: JSON.stringify({ message }),
   });
   const text = await res.text();
   if (!res.ok) {
