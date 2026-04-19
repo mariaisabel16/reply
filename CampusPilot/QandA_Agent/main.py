@@ -36,7 +36,7 @@ from agent import backend_mode, run_chat_turn
 import chat_session_store
 import course_pick_pending
 import registration_pending
-from campus_crawl import CrawlStatusResponse, get_crawl_status_for_user
+from campus_crawl import CrawlStatusResponse, compact_study_profile_for_prompt, get_crawl_status_for_user
 from campuspilot_auth import (
     SESSION_COOKIE_NAME,
     AuthUser,
@@ -161,12 +161,13 @@ async def chat(
 ) -> ChatResponse:
     prior = chat_session_store.get_messages(user.user_id)
     messages: list[dict[str, Any]] = [*prior, {"role": "user", "content": req.message}]
+    study_ctx = compact_study_profile_for_prompt(user.user_id)
     cred_token = tum_tool_credentials.set(
         TumPortalCredentials(tum_username=user.tum_username, tum_password=user.password_plain)
     )
     uid_token = current_auth_user_id.set(user.user_id)
     try:
-        reply, dbg = await run_chat_turn(messages)
+        reply, dbg = await run_chat_turn(messages, study_ctx)
     except RuntimeError as e:
         raise HTTPException(status_code=501, detail=str(e)) from e
     except Exception as e:

@@ -194,6 +194,112 @@ def get_stored_crawl_payload(user_id: int) -> dict[str, Any] | None:
     return raw if isinstance(raw, dict) else None
 
 
+def _truncate_str(s: str, max_len: int) -> str:
+    s = s.strip()
+    if len(s) <= max_len:
+        return s
+    return s[: max_len - 1] + "…"
+
+
+def _compact_label_table(d: Any, *, max_pairs: int, max_val_len: int) -> dict[str, str]:
+    if not isinstance(d, dict):
+        return {}
+    out: dict[str, str] = {}
+    for i, (k, v) in enumerate(d.items()):
+        if i >= max_pairs:
+            break
+        if not isinstance(k, str) or not k.strip():
+            continue
+        if v is None:
+            continue
+        vs = str(v).strip()
+        if not vs:
+            continue
+        out[_truncate_str(k, 120)] = _truncate_str(vs, max_val_len)
+    return out
+
+
+def compact_study_profile_for_prompt(user_id: int) -> str | None:
+    """
+    Kurzprofil aus dem letzten erfolgreichen TUMonline-Crawl (SQLite), für den LLM-Systemprompt.
+
+    Keine Passwörter, keine Modullisten — nur Stammdaten/Studienkontext. Gibt None zurück,
+    wenn noch kein Crawl oder Fehlerstatus.
+    """
+    raw = get_stored_crawl_payload(user_id)
+    if not raw:
+        return None
+    sc = raw.get("student_card_data")
+    cd = raw.get("curriculum_data")
+    md = raw.get("modules_data")
+    profile: dict[str, Any] = {}
+    if isinstance(raw.get("scraped_at"), str) and raw["scraped_at"].strip():
+        profile["scraped_at"] = raw["scraped_at"].strip()
+    if isinstance(raw.get("environment"), str) and raw["environment"].strip():
+        profile["tum_environment"] = raw["environment"].strip()
+
+    if isinstance(sc, dict):
+        stu: dict[str, Any] = {}
+        for key in (
+            "matrikelnummer",
+            "full_name",
+            "vorname",
+            "nachname",
+            "fachsemester",
+            "studien_id",
+            "spo_version",
+        ):
+            val = sc.get(key)
+            if val is None or val == "":
+                continue
+            stu[key] = val
+        bi = _compact_label_table(sc.get("basisinformationen"), max_pairs=14, max_val_len=220)
+        if bi:
+            stu["basisinformationen"] = bi
+        wi = _compact_label_table(sc.get("weitere_informationen"), max_pairs=8, max_val_len=220)
+        if wi:
+            stu["weitere_informationen"] = wi
+        if stu:
+            profile["student_card"] = stu
+
+    if isinstance(cd, dict):
+        cur: dict[str, Any] = {}
+        for key in ("name", "matrikelnummer", "average", "semester", "study_status"):
+            val = cd.get(key)
+            if val is None or val == "":
+                continue
+            cur[key] = val
+        ects = cd.get("ects")
+        if isinstance(ects, dict) and ects:
+            cur["ects"] = ects
+        mods = cd.get("modules")
+        if isinstance(mods, list):
+            cur["curriculum_positiv_module_tiles_count"] = len(mods)
+        if cur:
+            profile["curriculum_page"] = cur
+
+    if isinstance(md, dict):
+        summ: dict[str, Any] = {}
+        for key in ("total", "passed", "in_progress", "total_ects"):
+            if key in md and md[key] is not None:
+                summ[key] = md[key]
+        if summ:
+            profile["grades_summary"] = summ
+
+    if not any(k in profile for k in ("student_card", "curriculum_page", "grades_summary")):
+        return None
+    try:
+        blob = json.dumps(profile, ensure_ascii=False, indent=2)
+    except (TypeError, ValueError):
+        return None
+    return (
+        "## TUMonline-Studierendenkontext (serverseitig nach Login gecrawlt)\n"
+        "Die folgenden Felder stammen aus TUMonline (Demo-Campus), Stand siehe `scraped_at`. "
+        "Nur nutzen, wenn sie zur Nutzerfrage passen; nichts erfinden oder extrapolieren.\n\n"
+        f"```json\n{blob}\n```"
+    )
+
+
 def _compact_crawl_payload(raw: dict[str, Any]) -> dict[str, Any]:
     """Reduce size for JSON responses (tables / previews can be huge)."""
     d = copy.deepcopy(raw)

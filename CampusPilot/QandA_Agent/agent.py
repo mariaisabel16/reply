@@ -76,6 +76,22 @@ Formatierung (einheitlich für die Chat-Oberfläche):
 - Roh-JSON nicht als Kauderwelsch ausgeben — höchstens kompaktes ```json ... ``` wenn wirklich nötig.
 - Keine überflüssigen Emojis; keine Meta-Kommentare zur internen API."""
 
+
+def full_system_prompt(study_context_markdown: str | None) -> str:
+    """Basis-Systemprompt plus optionaler TUMonline-Crawl-Kontext (kein Passwort, keine Roh-HTML-Tabellen)."""
+    if not (study_context_markdown and study_context_markdown.strip()):
+        return SYSTEM_PROMPT
+    return (
+        SYSTEM_PROMPT
+        + "\n\nEs folgt ein **optionaler Nutzerkontext** aus TUMonline (serverseitiger Post-Login-Crawl). "
+        "Nur verwenden, wenn er zur Frage passt; nichts daraus erfinden oder extrapolieren. "
+        "Angaben können veraltet sein (Feld `scraped_at`). "
+        "**Matrikelnummer** und ähnliche Identifikatoren nicht proaktiv in Nutzerantworten nennen, "
+        "es sei denn, der Nutzer fragt ausdrücklich danach.\n\n"
+        + study_context_markdown.strip()
+    )
+
+
 _openai_client: AsyncOpenAI | None = None
 _ollama_client: AsyncOpenAI | None = None
 _bedrock_runtime: Any | None = None
@@ -183,10 +199,13 @@ def _bedrock_tool_result_json_value(parsed: Any) -> dict[str, Any]:
     return {"result": parsed}
 
 
-async def _run_bedrock_tool_loop(messages: list[dict[str, Any]]) -> tuple[str, list[dict[str, Any]]]:
+async def _run_bedrock_tool_loop(
+    messages: list[dict[str, Any]],
+    study_context_markdown: str | None = None,
+) -> tuple[str, list[dict[str, Any]]]:
     brt = _bedrock_client()
     conversation = _chat_messages_to_bedrock(_normalize_messages(messages))
-    system_prompt = [{"text": SYSTEM_PROMPT}]
+    system_prompt = [{"text": full_system_prompt(study_context_markdown)}]
     tool_config = bedrock_tool_config()
     transcript: list[dict[str, Any]] = []
 
@@ -252,8 +271,16 @@ async def _run_bedrock_tool_loop(messages: list[dict[str, Any]]) -> tuple[str, l
     return "Abbruch: zu viele Tool-Schritte.", transcript
 
 
-async def _run_tool_loop(client: AsyncOpenAI, model: str, messages: list[dict[str, Any]]) -> tuple[str, list[dict[str, Any]]]:
-    msgs: list[dict[str, Any]] = [{"role": "system", "content": SYSTEM_PROMPT}, *_normalize_messages(messages)]
+async def _run_tool_loop(
+    client: AsyncOpenAI,
+    model: str,
+    messages: list[dict[str, Any]],
+    study_context_markdown: str | None = None,
+) -> tuple[str, list[dict[str, Any]]]:
+    msgs: list[dict[str, Any]] = [
+        {"role": "system", "content": full_system_prompt(study_context_markdown)},
+        *_normalize_messages(messages),
+    ]
     transcript: list[dict[str, Any]] = []
 
     for _ in range(8):
@@ -303,18 +330,23 @@ async def _run_tool_loop(client: AsyncOpenAI, model: str, messages: list[dict[st
     return "Abbruch: zu viele Tool-Schritte.", transcript
 
 
-async def run_chat_turn(messages: list[dict[str, Any]]) -> tuple[str, list[dict[str, Any]]]:
+async def run_chat_turn(
+    messages: list[dict[str, Any]],
+    study_context_markdown: str | None = None,
+) -> tuple[str, list[dict[str, Any]]]:
     """
     Returns (assistant_text, transcript for debug).
     Priority: Amazon Bedrock (BEDROCK_MODEL_ID, boto3 converse) > OpenAI > Ollama > deterministic demo.
+
+    ``study_context_markdown``: z. B. kompaktes JSON aus TUMonline-Crawl (Matrikel, Fachsemester, …).
     """
     if settings.bedrock_model_id:
         print("using bedrock")
-        return await _run_bedrock_tool_loop(messages)
+        return await _run_bedrock_tool_loop(messages, study_context_markdown)
     if settings.openai_api_key:
         print("using openai")
-        return await _run_tool_loop(_openai_client(), settings.openai_model, messages)
+        return await _run_tool_loop(_openai_client(), settings.openai_model, messages, study_context_markdown)
     if settings.ollama_base_url:
         print("using ollama")
-        return await _run_tool_loop(_ollama_client(), settings.ollama_model, messages)
-    return await run_demo_turn(messages)
+        return await _run_tool_loop(_ollama_client(), settings.ollama_model, messages, study_context_markdown)
+    return await run_demo_turn(messages, study_context_markdown)

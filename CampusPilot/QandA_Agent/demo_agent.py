@@ -74,7 +74,10 @@ def format_semester_answer_demo(user_question: str, data: dict[str, Any]) -> str
     return "\n".join(lines)
 
 
-async def run_demo_turn(messages: list[dict[str, Any]]) -> tuple[str, list[dict[str, Any]]]:
+async def run_demo_turn(
+    messages: list[dict[str, Any]],
+    study_context_markdown: str | None = None,
+) -> tuple[str, list[dict[str, Any]]]:
     user_parts = [str(m.get("content", "")) for m in messages if m.get("role") == "user"]
     user_q = user_parts[-1] if user_parts else ""
     key = infer_semester_key(user_q)
